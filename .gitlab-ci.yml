@@ -1,0 +1,56 @@
+stages:
+  - build
+  - test
+
+build:
+  stage: build
+  rules:
+    - if: $CI_COMMIT_BRANCH == "test"
+      changes:
+        - "*.py"
+        - Dockerfile
+  tags:
+    - build
+    - docker-runtime
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN ${CI_REGISTRY}
+    - docker build --tag ${CI_REGISTRY_IMAGE}:$CI_COMMIT_BRANCH .
+    - docker push ${CI_REGISTRY_IMAGE}:$CI_COMMIT_BRANCH
+
+# Teste com apoio do projeto informado em "$TESTE_PROJID"
+teste:
+  tags:
+    - trigger
+  image: ${CI_REGISTRY_IMAGE}:${CI_COMMIT_BRANCH}
+  rules:
+    - if: $CI_COMMIT_BRANCH == "test"
+  variables:
+    SMTP_SUBJECT: GitlabJob_Teste
+  stage: test
+  script:
+    - echo "Testes unitários"
+    - export SMTP_TO=$GITLAB_USER_EMAIL
+    - export PROJECT_ID=$TESTE_PROJID
+    - export SMTP_SUBJECT="GitlabJob_Teste"
+    - export TESTE_TOKENTRIG="ceacca74cb3fdeed161d8552870c63"
+    - export GROUP_ID=$TESTE_GRPID
+    - python3 -m unittest test*.py
+    - sleep 5
+    - echo "Teste excutor"
+    - unset GROUP_ID # Para executar teste apenas no projeto de teste
+    - python3 executor.py
+
+prod:build:
+  stage: build
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      changes:
+        - "*.py"
+        - Dockerfile
+  tags:
+    - build
+    - docker-runtime
+  script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN ${CI_REGISTRY}
+    - docker build --tag ${CI_REGISTRY_IMAGE}:latest .
+    - docker push ${CI_REGISTRY_IMAGE}:latest
