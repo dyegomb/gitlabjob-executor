@@ -18,12 +18,16 @@ class Jobmail():
         self.msg = EmailMessage()
         self.msg["Body"] = ""
         self.corpo = ""
+        self.destino = list()
 
     def assunto(self, assunto:str):
         self.msg["Subject"] = assunto
 
-    def destino(self, dest:str):
-        self.msg["To"] = dest
+    def destino_add(self, dest:str):
+        if type(dest) is not str: return False
+        if not dest: return False
+        self.destino.append(dest)
+        return True
 
     def remetente(self, remetente:str):
         self.msg["From"] = remetente
@@ -33,6 +37,7 @@ class Jobmail():
         self.msg.set_content(self.corpo)
 
     def send(self):
+        self.msg["To"] = ",".join(self.destino)
         with smtplib.SMTP(self.server) as server:
             if self.auth:
                 server.login(self._login, self.__passw)

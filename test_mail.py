@@ -14,9 +14,9 @@ class Testes(unittest.TestCase):
         self.assertEqual(self.jobmail.msg["Subject"], assunto, "Erro ao\
  definir assunto")
 
-        destino = environ.get("SMTP_TO") or "teste@teste.teste"
-        self.jobmail.destino(destino)
-        self.assertEqual(self.jobmail.msg["To"], destino, "Erro ao \
+        destino = environ.get("SMTP_TO") or "teste@test.tst"
+        self.jobmail.destino.append(destino)
+        self.assertIn(destino, self.jobmail.destino, "Erro ao \
 definir destino")
 
         remetente = environ.get("SMTP_FROM") or "teste1@teste.tst"
@@ -33,9 +33,14 @@ definir destino")
         self.jobmail.msg_append(msg2)
         self.assertIn(msg2, self.jobmail.msg.get_payload())
 
+    def test_appendto(self):
+        destino = environ.get("SMTP_TO") or "teste@test.tst"
+        self.jobmail.destino_add(destino)
+        self.assertIn(destino, self.jobmail.destino, "Erro ao \
+definir múltiplos destino")
+
     def test_send(self):
         self.jobmail.send()
-
 
 if __name__ == "__main__":
     unittest.main()

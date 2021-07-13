@@ -3,6 +3,10 @@ from os import environ
 
 
 class GitlabJob(object):
+    """
+    Utiliza Gitlab API para executar tarefas manuais
+    https://docs.gitlab.com/ce/api/
+    """
     def __init__(self, token:str="", project_id:str="", base_url:str=""):
         self.pvtoken = token or environ["PRIVATE_TOKEN"]
         self.project_id = project_id or environ.get("PROJECTS_ID")
@@ -32,7 +36,7 @@ class GitlabJob(object):
 
     @staticmethod
     def _filter(item:iter, key:str, value=""):
-        assert type(item) in [list, tuple, dict, set], "Tipo de objeto inválido"
+        assert type(item) in [list, tuple, dict, set], "Tipo de objeto inválido para filtro"
         if isinstance(item, dict):
             if item.get(key) == value:
                 return item
@@ -52,13 +56,15 @@ class GitlabJob(object):
         ['jobid', 'jobid']
         """
         projid = proj_id or self.project_id
+        assert type(int(projid)) is int
+
         uri = f'/api/v4/projects/{projid}/jobs?pagination=keyset&per_page=100&order_by=id&sort=asc'
         if filtro and "status" in filtro.keys(): 
             scope = filtro["status"]
             uri += f"&scope={scope}"
         resp = self._req(uri)
-
         rjson = resp.json()
+
         for pagina in range(1, int(resp.headers.get("x-total-pages"))+1):
             if pagina == 1: continue
             uri_pg = uri+f"&page={pagina}"
@@ -85,9 +91,10 @@ class GitlabJob(object):
         return resultado.status_code
 
     def play_all(self, filtro={"status":"manual"}, proj_id="") -> dict:
-        prj_id = proj_id or self.project_id
+        projid = proj_id or self.project_id
+        assert type(projid) in [int,str]
         retorno = dict()
-        self.jobs_list = self.get_jobs(filtro=filtro, proj_id=prj_id)
+        self.jobs_list = self.get_jobs(filtro=filtro, proj_id=projid)
 
         for job in self.jobs_list:
             status = self.play_job(job)
@@ -95,42 +102,52 @@ class GitlabJob(object):
 
         return retorno
 
-    def get_jobinfo(self, jobid:str, proj_id="") -> dict:
-        prj_id = proj_id or self.project_id
-        uri = f'/api/v4/projects/{prj_id}/jobs/{jobid}'
-        resultado = self._req(uri)
-        try:
-            jobs_json = resultado.json()
-        except Exception:
-            return {"erro": "não foi possível capturar informações do job",
-                    "codigo": resultado.status_code }
+    def get_jobinfo(self, jobid="", proj_id="") -> dict:
+        projid = proj_id or self.project_id
+        assert type(projid) in [int,str]
 
+        if not jobid and not projid:
+            raise ValueError("Informe o ID do JOB e do Projeto")
 
-        pipid = jobs_json.get("pipeline").get("id")
-        uri = f'/api/v4/projects/{prj_id}/pipelines/{pipid}/variables'
-        resultado = self._req(uri)
+        if jobid:
+            uri = f'/api/v4/projects/{projid}/jobs/{jobid}'
+            resultado = self._req(uri)
+            try:
+                jobs_json = resultado.json()
+            except Exception:
+                return {"erro": "não foi possível capturar informações do job",
+                        "codigo": resultado.status_code }
 
-        try:
-            pipe_json = resultado.json()
-        except Exception:
-            return {"erro": "não foi possível capturar informações do pipeline",
-                    "codigo": resultado.status_code }
+            pipid = jobs_json.get("pipeline").get("id")
+            uri = f'/api/v4/projects/{projid}/pipelines/{pipid}/variables'
+            resultado = self._req(uri)
+
+            try:
+                pipe_json = resultado.json()
+            except Exception:
+                return {"erro": "não foi possível capturar informações do pipeline",
+                        "codigo": resultado.status_code }
+        else:
+            jobs_json = dict()
+            pipe_json = dict()
+            pipid = ""
         
         user_mail = ""
         prod_tag = ""
         ref_source = ""
+        source_id = ""
         for item in pipe_json:
-            try:
-                user_mail = self._filter(item, "key", "trigger_email"
-                                        ).get("value") or user_mail
-                prod_tag = self._filter(item, "key", "PROD_TAG"
-                                        ).get("value") or prod_tag
-                ref_source = self._filter(item, "key", "ref_source"
-                                        ).get("value") or ref_source
-            except AttributeError:
-                continue
+            chave = item.get("key")
+            if chave == "trigger_email":
+                user_mail = item.get("value")
+            elif chave == "PROD_TAG":
+                prod_tag = item.get("value")
+            elif chave == "ref_source":
+                ref_source = item.get("value")
+            elif chave == "source_id":
+                source_id = item.get("value")
 
-        uri = f'/api/v4/projects/{prj_id}'
+        uri = f'/api/v4/projects/{projid}'
         resultado = self._req(uri)
         try:
             proj_json = resultado.json()
@@ -143,10 +160,11 @@ class GitlabJob(object):
             'job_url': jobs_json.get("web_url"),
             'nome_projeto': proj_json.get("name"),
             "pipelineid": pipid,
+            "source_id": source_id,
             "user_mail": user_mail, 
             "branch": ref_source or "não informada",
             "versao_tag": prod_tag or "não informada",
-        }
+            }
 
         return infos
 
@@ -160,6 +178,66 @@ class GitlabJob(object):
             projs_ids.append(proj.get("id"))
 
         return projs_ids
+
+    def cancel_job(self, jobid:str, proj_id="") -> dict:
+        projid = proj_id or self.project_id
+        assert type(projid) in [int,str]
+        uri = f'/api/v4/projects/{projid}/jobs/{jobid}/cancel'
+        resp = self._req(uri, "POST")
+        return resp.json()
+
+    def get_pipelines(self, proj_id="", filtro={"status":"manual"}) -> list:
+        """https://docs.gitlab.com/ce/api/pipelines.html#list-project-pipelines
+        retora lista com IDs dos pipelines
+        get_pipelines(proj_id=123)"""
+
+        projid = proj_id or self.project_id
+        assert type(projid) in [int,str]
+
+        uri = f'api/v4/projects/{projid}/pipelines?order_by=id&sort=asc'
+        if filtro and "status" in filtro.keys(): 
+            f_status = filtro["status"]
+            uri += f"&status={f_status}"
+        resp = self._req(uri)
+
+        list_pipelines = list()
+
+        for pipeline in resp.json():
+            list_pipelines.append(pipeline.get("id"))
+
+        return list_pipelines
+
+    def delete_pipeline(self, pipelineid:int, proj_id="") -> int:
+        """https://docs.gitlab.com/ee/api/pipelines.html#delete-a-pipeline"""
+
+        projid = proj_id or self.project_id
+        assert type(projid) in [int,str]
+        assert type(int(pipelineid)) is int
+
+        uri = f'api/v4/projects/{projid}/pipelines/{pipelineid}'
+
+        resp = self._req(uri, method="DELETE")
+
+        return resp.status_code
+
+    def get_tags(self, proj_id="", filtro="") -> list:
+        """https://docs.gitlab.com/ce/api/tags.html"""
+
+        projid = proj_id or self.project_id
+        assert type(projid) in [int,str]
+
+        uri = f'api/v4/projects/{projid}/repository/tags?order_by=updated'
+        if filtro:
+            uri += f"&search={filtro}"
+
+        rjson = self._req(uri).json()
+
+        tags = list()
+
+        for tag in rjson:
+            tags.append(tag.get("name"))
+
+        return tags
 
 
 if __name__ == "__main__":

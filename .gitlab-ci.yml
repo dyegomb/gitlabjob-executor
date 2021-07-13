@@ -1,11 +1,23 @@
 stages:
   - build
   - test
+  - deploy
+
+executor:
+  stage: deploy
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $CI_COMMIT_BRANCH == "master"
+  image: ${CI_REGISTRY_IMAGE}:latest
+  tags:
+    - docker
+  script:
+    - python3 executor.py
+
 
 build:
   stage: build
   rules:
-    - if: $CI_COMMIT_BRANCH == "test"
+    - if: $CI_COMMIT_BRANCH == "test" && $CI_PIPELINE_SOURCE != "schedule"
       changes:
         - "*.py"
         - Dockerfile
@@ -23,7 +35,7 @@ teste:
     - trigger
   image: ${CI_REGISTRY_IMAGE}:${CI_COMMIT_BRANCH}
   rules:
-    - if: $CI_COMMIT_BRANCH == "test"
+    - if: $CI_COMMIT_BRANCH == "test" && $CI_PIPELINE_SOURCE != "schedule"
   variables:
     SMTP_SUBJECT: GitlabJob_Teste
   stage: test
@@ -36,14 +48,13 @@ teste:
     - export GROUP_ID=$TESTE_GRPID
     - python3 -m unittest test*.py
     - sleep 5
-    - echo "Teste excutor"
-    - unset GROUP_ID # Para executar teste apenas no projeto de teste
+    - echo "Teste de integração"
     - python3 executor.py
 
 prod:build:
   stage: build
   rules:
-    - if: $CI_COMMIT_BRANCH == "master"
+    - if: $CI_COMMIT_BRANCH == "master" && $CI_PIPELINE_SOURCE != "schedule"
       changes:
         - "*.py"
         - Dockerfile
