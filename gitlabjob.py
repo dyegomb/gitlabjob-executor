@@ -24,8 +24,8 @@ class GitlabJob(object):
         for head in headers.items():
             sessao.headers[head[0]] = head[1]
 
-        joinner = "" if self.base_url.endswith("/") else "/"
-        url = joinner.join([self.base_url, uri])
+        join = "" if self.base_url.endswith("/") or uri.startswith("/") else "/"
+        url = join.join([self.base_url, uri])
 
         try:
             resp = sessao.request(method, url, data=data)
@@ -239,6 +239,49 @@ class GitlabJob(object):
 
         return tags
 
+    def get_repositories(self, proj_id="", groupid="") -> dict:
+        """https://docs.gitlab.com/ce/api/container_registry.html#list-registry-repositories
+        Retorna dicionário de ID de projetos com IDs dos repositórios
+        {PROJ_ID: [REP_ID-1, REP_ID-2]}"""
+
+        projid = proj_id or self.project_id
+        assert type(projid) in [int,str]
+
+        if groupid:
+            uri = f'api/v4/groups/{groupid}/registry/repositories'
+        else:
+            uri = f'api/v4/projects/{projid}/registry/repositories'
+
+        rjson = self._req(uri).json()
+
+        rep_ids = dict()
+
+        for rep in rjson:
+            try:
+                rep_ids[rep["project_id"]].add(rep["id"])
+            except KeyError:
+                rep_ids[rep["project_id"]] = set([rep["id"]])
+
+        return rep_ids
+
+    def delete_bulkrep(self, repo_id:int, proj_id="", regex=".*",
+        keep=5, older_than="3d") -> int:
+        """https://docs.gitlab.com/ce/api/container_registry.html#delete-registry-repository-tags-in-bulk"""
+
+        projid = proj_id or self.project_id
+        assert type(projid) in [int,str]
+        
+        uri = f'api/v4/projects/{projid}/registry/repositories/{repo_id}/tags'
+
+        dados = {
+            "name_regex_delete": regex,
+            "keep_n": keep,
+            "older_than": older_than,
+        }
+
+        resp = self._req(uri, method="DELETE", data=dados)
+
+        return resp.status_code
 
 if __name__ == "__main__":
     from argparse import ArgumentParser

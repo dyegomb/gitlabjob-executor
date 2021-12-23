@@ -1,4 +1,3 @@
-from getpass import getpass
 from os import environ
 from email.message import EmailMessage
 import smtplib
@@ -11,8 +10,7 @@ class Jobmail():
         self.auth = auth
         if auth or environ.get("SMTP_USER"):
             self._login = login or environ["SMTP_USER"]
-            self.__passw = password or environ.get("SMTP_PASS") \
-                    or getpass("Informe a senha:")
+            self.__passw = password or environ.get("SMTP_PASS")
             self.auth = True
         
         self.msg = EmailMessage()

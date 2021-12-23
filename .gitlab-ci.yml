@@ -32,7 +32,7 @@ build:
 # Teste com apoio do projeto informado em "$TESTE_PROJID"
 teste:
   tags:
-    - trigger
+    - docker
   image: ${CI_REGISTRY_IMAGE}:${CI_COMMIT_BRANCH}
   rules:
     - if: $CI_COMMIT_BRANCH == "test" && $CI_PIPELINE_SOURCE != "schedule"
@@ -46,7 +46,7 @@ teste:
     - export SMTP_SUBJECT="GitlabJob_Teste"
     - export TESTE_TOKENTRIG="ceacca74cb3fdeed161d8552870c63"
     - export GROUP_ID=$TESTE_GRPID
-    - python3 -m unittest test*.py
+    - python3 -m unittest tests/*.py
     - sleep 5
     - echo "Teste de integração"
     - python3 executor.py
