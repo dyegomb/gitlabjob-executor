@@ -5,7 +5,7 @@ It is a workaround until conclusion of https://gitlab.com/gitlab-org/gitlab/-/is
 Its proposal is to execute manual jobs inside Gitlab group or project, so you can queue a manual job that will be started in a proper time by this program.
 
 ## How to use
-Basically you have to feed the _.env_ file as example bellow.
+Basically you have to feed the _.env_ file as example below.
 
 ```ini
 PRIVATE_TOKEN="XXXXXXXXXXXXX"
