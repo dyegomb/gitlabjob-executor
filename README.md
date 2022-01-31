@@ -19,4 +19,4 @@ SMTP_SUBJECT="Test"
 ```
 If you inform _GROUP_ID_, the _PROJECT_ID_ will be ignored and the manuals jobs of the pipeline projects inside this group will be started.
 
-Then you can execute ```python3 executor.py```, you also can use the Gitlab Schedule to execute is regurlarly.
+Then you can execute ```python3 executor.py```, you also can use the Gitlab Schedule to execute it regurlarly.
