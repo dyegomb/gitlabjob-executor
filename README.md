@@ -19,4 +19,6 @@ SMTP_SUBJECT="Test"
 ```
 If you inform _GROUP_ID_, the _PROJECT_ID_ will be ignored and the manuals jobs of the pipeline projects inside this group will be started.
 
+Another if is when this parameter has an already setted environment variable with the same name, the value on the ".env" will be ignored.
+
 Then you can execute ```python3 executor.py```, you also can use the Gitlab Schedule to execute it regurlarly.
