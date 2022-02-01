@@ -13,7 +13,7 @@ def load_conf(file=".env") -> bool :
 
     for item in config['DummyHeader'].items():
         key = item[0]
-        if not os.environ.get(key):
+        if os.environ.get(key):
             continue
 
         value = item[1]
