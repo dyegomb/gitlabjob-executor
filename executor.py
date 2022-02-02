@@ -1,4 +1,4 @@
-from jobmail import Jobmail
+# from jobmail import Jobmail
 from gitlabjob import GitlabJob
 from os import environ
 from time import sleep
