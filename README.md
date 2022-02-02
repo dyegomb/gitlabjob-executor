@@ -9,13 +9,8 @@ Basically you have to feed the _.env_ file as example below.
 
 ```ini
 PRIVATE_TOKEN="XXXXXXXXXXXXX"
-BASE_URL="https://gitlab.com/user/"
+BASE_URL="https://gitlab.company.com/"
 PROJECT_ID="123" # or GROUP_ID="1"
-SMTP_SERVER="mail.com"
-SMTP_USER="user"
-SMTP_FROM="user@mail.com"
-SMTP_TO="user2@mail.com"
-SMTP_SUBJECT="Test"
 ```
 If you inform _GROUP_ID_, the _PROJECT_ID_ will be ignored and the manuals jobs of the pipeline projects inside this group will be started.
 
