@@ -15,7 +15,6 @@ if __name__ == "__main__":
         lst_projs = [environ.get("PROJECT_ID")]
 
     for proj in lst_projs:
-        if not proj: continue
 
         print("="*5, f" PROJETO ID: {proj}")
         gitlabjob.project_id = proj
