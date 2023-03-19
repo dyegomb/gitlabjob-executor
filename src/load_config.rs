@@ -1,5 +1,21 @@
-use log::{debug, warn};
+use log::{debug, error, info, warn};
+use std::fs::File;
+use std::io::{self, BufRead, BufReader};
 use std::{collections::HashMap, fmt::Error};
+
+fn read_lines(filename: String) -> Option<io::Lines<BufReader<File>>> {
+    // Open the file in read-only mode.
+    let file = File::open(&filename);
+    // Read the file line by line, and return an iterator of the lines of the file.
+
+    match file {
+        Ok(content) => Some(io::BufReader::new(content).lines()),
+        Err(_) => {
+            error!("Couldn't read the file {}", filename);
+            None
+        }
+    }
+}
 
 /// Get configurations from environment or from file
 pub fn load_config() -> Result<HashMap<&'static str, String>, Error> {
@@ -52,8 +68,6 @@ pub fn load_config() -> Result<HashMap<&'static str, String>, Error> {
 
 #[cfg(test)]
 mod test_load_config {
-    use log::info;
-
     use super::*;
 
     fn init() {
@@ -65,7 +79,7 @@ mod test_load_config {
             // Ignore errors initializing the logger if tests race to configure it
             .try_init();
     }
-    
+
     #[test]
     fn test_set_read_env() {
         init();
@@ -109,5 +123,16 @@ mod test_load_config {
         let confs = load_config().unwrap();
 
         assert_eq!(hash_templ, confs);
+    }
+
+    #[test]
+    fn test_read_file() {
+        init();
+
+        let lines = read_lines(".env.example".to_string()).unwrap();
+
+        for line in lines {
+            println!("{:?}", line.unwrap());
+        }
     }
 }
