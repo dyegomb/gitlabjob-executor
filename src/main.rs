@@ -1,12 +1,13 @@
-use std::env;
+use log::{debug, warn, info};
 
-mod env_config;
+mod load_config;
 
 fn main() {
-    env::vars()
-        .into_iter()
-        .for_each(|t| {
-            println!("{:?}", t)
-        });
+    env_logger::init();
+
+    debug!("Isso é um debug");
+    warn!("Isso é um warning");
+    info!("Isso é um info");
+
     println!("Hello, world!");
 }

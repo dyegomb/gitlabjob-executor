@@ -8,3 +8,5 @@ edition = "2021"
 [dependencies]
 reqwest = "0.11"
 serde = "1.0"
+log = { version = "0.4", features = ["max_level_debug", "release_max_level_warn"] }
+env_logger = "0.10"
