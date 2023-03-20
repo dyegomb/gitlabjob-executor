@@ -50,16 +50,20 @@ pub fn load_config() -> Result<HashMap<&'static str, String>, Error> {
         }
     });
 
-    let file_name = std::env::var("ENV_FILE").unwrap_or(".env".to_string());
-
-    // let file_content = std::fs::read(file_name)
-    //     .expect("Should have been able to read the file");
-
     if !all_read {
         warn!("Not all settings were setted");
 
         #[cfg(debug_assertions)]
         debug!("Not setted: {:?}", not_setted);
+
+        // Read settings from environment file
+        let file_name = std::env::var("ENV_FILE").unwrap_or(".env".to_string());
+
+        if let Some(file) = read_lines(file_name) {
+            for line in file {
+                unimplemented!();
+            }
+        }
     }
 
     Ok(configs)
