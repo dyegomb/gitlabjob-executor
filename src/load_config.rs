@@ -22,22 +22,6 @@ pub struct Config {
     smtp_subject: Option<String>,
 }
 
-impl Config {
-    fn new() -> Self {
-        Config {
-            group_id: None,
-            project_id: None,
-            private_token: None,
-            base_url: None,
-            smtp_server: None,
-            smtp_user: None,
-            smtp_from: None,
-            smtp_to: None,
-            smtp_subject: None,
-        }
-    }
-}
-
 /// Get configurations from environment or from file
 pub fn load_config() -> Result<Config, Error> {
     let mut config;
@@ -112,7 +96,17 @@ mod test_load_config {
         env_cleaner();
 
         let confs = load_config().unwrap();
-        let config_new = Config::new();
+        let config_new = Config {
+            group_id: None,
+            project_id: None,
+            private_token: None,
+            base_url: None,
+            smtp_server: None,
+            smtp_user: None,
+            smtp_from: None,
+            smtp_to: None,
+            smtp_subject: None,
+        };
 
         assert_eq!(confs, config_new);
         // }
