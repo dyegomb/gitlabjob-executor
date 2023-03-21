@@ -1,78 +1,99 @@
-use log::{debug, error, info, warn};
-use std::fs::File;
-use std::io::{self, BufRead, BufReader};
-use std::{collections::HashMap, fmt::Error};
+use log::{debug, error};
+use merge::Merge;
+use serde::Deserialize;
+use std::fmt::Error;
 
-fn read_lines(filename: String) -> Option<io::Lines<BufReader<File>>> {
-    // Open the file in read-only mode.
-    let file = File::open(&filename);
-    // Read the file line by line, and return an iterator of the lines of the file.
+extern crate envy;
+extern crate merge;
+extern crate toml;
 
-    match file {
-        Ok(content) => Some(io::BufReader::new(content).lines()),
-        Err(_) => {
-            error!("Couldn't read the file {}", filename);
-            None
+/// Possible configurations
+#[derive(Deserialize, Debug, Merge, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub struct Config {
+    group_id: Option<usize>,
+    project_id: Option<usize>,
+    private_token: Option<String>,
+    base_url: Option<String>,
+    smtp_server: Option<String>,
+    smtp_user: Option<String>,
+    smtp_from: Option<String>,
+    smtp_to: Option<String>,
+    smtp_subject: Option<String>,
+}
+
+impl Config {
+    fn new() -> Self {
+        Config {
+            group_id: None,
+            project_id: None,
+            private_token: None,
+            base_url: None,
+            smtp_server: None,
+            smtp_user: None,
+            smtp_from: None,
+            smtp_to: None,
+            smtp_subject: None,
         }
     }
 }
 
 /// Get configurations from environment or from file
-pub fn load_config() -> Result<HashMap<&'static str, String>, Error> {
-    // Possible configuration keys
-    let config_keys = vec![
-        "GROUP_ID",
-        "PROJECT_ID",
-        "PRIVATE_TOKEN",
-        "BASE_URL",
-        "SMTP_SERVER",
-        "SMTP_USER",
-        "SMTP_FROM",
-        "SMTP_TO",
-        "SMTP_SUBJECT",
-    ];
+pub fn load_config() -> Result<Config, Error> {
+    let mut config;
 
-    let mut configs = HashMap::new();
-
-    let mut all_read = true;
-
-    #[cfg(debug_assertions)]
-    let mut not_setted: Vec<&str> = Vec::new();
-
-    config_keys.iter().for_each(|k| {
-        if let Ok(val) = std::env::var(k) {
-            configs.insert(*k, val);
-        } else {
-            all_read = false;
-
-            #[cfg(debug_assertions)]
-            not_setted.push(*k);
+    match envy::from_env::<Config>() {
+        Ok(env_config) => {
+            config = env_config;
         }
-    });
+        Err(err) => {
+            panic!("Couldn't load settings from environment: {}", err);
+        }
+    };
 
-    if !all_read {
-        warn!("Not all settings were setted");
+    let env_file = std::env::var("ENV_FILE").unwrap_or(".env".to_string());
 
-        #[cfg(debug_assertions)]
-        debug!("Not setted: {:?}", not_setted);
+    if let Ok(content) = std::fs::read_to_string(&env_file) {
+        debug!("To read file {}.", &env_file);
 
-        // Read settings from environment file
-        let file_name = std::env::var("ENV_FILE").unwrap_or(".env".to_string());
-
-        if let Some(file) = read_lines(file_name) {
-            for line in file {
-                unimplemented!();
+        match toml::from_str::<Config>(&content) {
+            Ok(toml_text) => {
+                let config_file: Config = toml_text;
+                config.merge(config_file);
             }
-        }
-    }
+            Err(err) => {
+                error!("Couldn't read file {}: {}", env_file, err);
+            }
+        };
+    };
 
-    Ok(configs)
-    //HashMap::from([(config_keys[0], "teste")])
+    Ok(config)
 }
 
 #[cfg(test)]
 mod test_load_config {
     use super::*;
+
+    fn env_cleaner() {
+        std::env::remove_var("group_id".to_uppercase());
+        std::env::remove_var("project_id".to_uppercase());
+        std::env::remove_var("private_token".to_uppercase());
+        std::env::remove_var("base_url".to_uppercase());
+        std::env::remove_var("smtp_server".to_uppercase());
+        std::env::remove_var("smtp_user".to_uppercase());
+        std::env::remove_var("smtp_from".to_uppercase());
+        std::env::remove_var("smtp_to".to_uppercase());
+        std::env::remove_var("smtp_subject".to_uppercase());
+        std::env::remove_var("group_id");
+        std::env::remove_var("project_id");
+        std::env::remove_var("private_token");
+        std::env::remove_var("base_url");
+        std::env::remove_var("smtp_server");
+        std::env::remove_var("smtp_user");
+        std::env::remove_var("smtp_from");
+        std::env::remove_var("smtp_to");
+        std::env::remove_var("smtp_subject");
+    }
 
     fn init() {
         let _ = env_logger::builder()
@@ -85,58 +106,55 @@ mod test_load_config {
     }
 
     #[test]
-    fn test_set_read_env() {
+    fn test_all() {
+        // running all tests in same place cause concurrency problems
         init();
-        std::env::set_var("GROUP_ID", "Test_val");
+        env_cleaner();
+
+        let confs = load_config().unwrap();
+        let config_new = Config::new();
+
+        assert_eq!(confs, config_new);
+        // }
+
+        // #[test]
+        // fn test_set_read_env() {
+        //     init();
+        env_cleaner();
+        std::env::set_var("GROUP_ID", "13");
+        std::env::set_var("base_url", "https://test.tst.ts/user");
 
         let confs = load_config().unwrap();
 
-        warn!("Warning");
-        debug!("Debugging");
-        info!("Info");
-        println!("Printing");
+        assert_eq!("13".to_string(), confs.group_id.unwrap().to_string());
+        assert_eq!(
+            "https://test.tst.ts/user".to_string(),
+            confs.base_url.unwrap()
+        );
+        // }
 
-        assert_eq!("Test_val", confs.get("GROUP_ID").unwrap());
-    }
+        // #[test]
+        // fn test_env_and_file() {
+        //     init();
+        env_cleaner();
 
-    #[test]
-    fn test_all_settings() {
-        init();
-        let config_keys = vec![
-            "GROUP_ID",
-            "PROJECT_ID",
-            "PRIVATE_TOKEN",
-            "BASE_URL",
-            "SMTP_SERVER",
-            "SMTP_USER",
-            "SMTP_FROM",
-            "SMTP_TO",
-            "SMTP_SUBJECT",
-        ];
-
-        let common_val = vec!["Test_val".to_string(); config_keys.len()];
-
-        config_keys
-            .iter()
-            .zip(&common_val)
-            .for_each(|(k, v)| std::env::set_var(k, v));
-
-        let hash_templ: HashMap<_, _> =
-            HashMap::from_iter(config_keys.iter().zip(common_val).map(|(k, v)| (*k, v)));
+        std::env::set_var("GROUP_ID", "13");
+        std::env::set_var("ENV_FILE", ".env.example");
 
         let confs = load_config().unwrap();
+        assert_eq!("13".to_string(), confs.group_id.unwrap().to_string());
+        assert_eq!("mail.com".to_string(), confs.smtp_server.unwrap());
+        // }
 
-        assert_eq!(hash_templ, confs);
-    }
+        // #[test]
+        // fn test_no_file() {
+        // init();
+        env_cleaner();
 
-    #[test]
-    fn test_read_file() {
-        init();
+        std::env::set_var("GROUP_ID", "13");
+        std::env::set_var("ENV_FILE", ".env.null");
 
-        let lines = read_lines(".env.example".to_string()).unwrap();
-
-        for line in lines {
-            println!("{:?}", line.unwrap());
-        }
+        let confs = load_config().unwrap();
+        assert_eq!("13".to_string(), confs.group_id.unwrap().to_string());
     }
 }
