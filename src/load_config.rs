@@ -11,15 +11,16 @@ extern crate toml;
 #[derive(Deserialize, Debug, Merge, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub struct Config {
-    group_id: Option<usize>,
-    project_id: Option<usize>,
-    private_token: Option<String>,
-    base_url: Option<String>,
-    smtp_server: Option<String>,
-    smtp_user: Option<String>,
-    smtp_from: Option<String>,
-    smtp_to: Option<String>,
-    smtp_subject: Option<String>,
+    pub group_id: Option<usize>,
+    pub project_id: Option<usize>,
+    pub private_token: Option<String>,
+    pub base_url: Option<String>,
+    pub smtp_server: Option<String>,
+    pub smtp_user: Option<String>,
+    pub smtp_pass: Option<String>,
+    pub smtp_from: Option<String>,
+    pub smtp_to: Option<String>,
+    pub smtp_subject: Option<String>,
 }
 
 /// Get configurations from environment or from file
@@ -90,10 +91,13 @@ mod test_load_config {
     }
 
     #[test]
-    fn test_all() {
+    #[ignore = "concurrency"]
+    fn test_empty() {
         // running all tests in same place cause concurrency problems
         init();
         env_cleaner();
+
+        std::env::set_var("ENV_FILE", ".env.none");
 
         let confs = load_config().unwrap();
         let config_new = Config {
@@ -103,17 +107,19 @@ mod test_load_config {
             base_url: None,
             smtp_server: None,
             smtp_user: None,
+            smtp_pass: None,
             smtp_from: None,
             smtp_to: None,
             smtp_subject: None,
         };
 
         assert_eq!(confs, config_new);
-        // }
+    }
 
-        // #[test]
-        // fn test_set_read_env() {
-        //     init();
+    #[test]
+    #[ignore = "concurrency"]
+    fn test_set_read_env() {
+        init();
         env_cleaner();
         std::env::set_var("GROUP_ID", "13");
         std::env::set_var("base_url", "https://test.tst.ts/user");
@@ -125,11 +131,11 @@ mod test_load_config {
             "https://test.tst.ts/user".to_string(),
             confs.base_url.unwrap()
         );
-        // }
+    }
 
-        // #[test]
-        // fn test_env_and_file() {
-        //     init();
+    #[test]
+    fn test_env_and_file() {
+        init();
         env_cleaner();
 
         std::env::set_var("GROUP_ID", "13");
@@ -138,11 +144,12 @@ mod test_load_config {
         let confs = load_config().unwrap();
         assert_eq!("13".to_string(), confs.group_id.unwrap().to_string());
         assert_eq!("mail.com".to_string(), confs.smtp_server.unwrap());
-        // }
+    }
 
-        // #[test]
-        // fn test_no_file() {
-        // init();
+    #[test]
+    #[ignore = "concurrency"]
+    fn test_no_file() {
+        init();
         env_cleaner();
 
         std::env::set_var("GROUP_ID", "13");
