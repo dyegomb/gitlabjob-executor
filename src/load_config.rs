@@ -8,25 +8,31 @@ extern crate merge;
 extern crate toml;
 
 /// Possible configurations
-#[derive(Deserialize, Debug, Merge, PartialEq)]
+#[derive(Deserialize, Debug, Merge, PartialEq, Clone)]
 #[serde(rename_all = "lowercase")]
 pub struct Config {
     pub group_id: Option<usize>,
     pub project_id: Option<usize>,
     pub private_token: Option<String>,
     pub base_url: Option<String>,
-    pub smtp_server: Option<String>,
-    pub smtp_user: Option<String>,
-    pub smtp_pass: Option<String>,
-    pub smtp_from: Option<String>,
-    pub smtp_to: Option<String>,
-    pub smtp_subject: Option<String>,
+    pub smtp: Option<SMTP>,
+}
+
+#[derive(Deserialize, Debug, Merge, PartialEq, Clone)]
+pub struct SMTP {
+    pub server: Option<String>,
+    pub user: Option<String>,
+    pub pass: Option<String>,
+    pub from: Option<String>,
+    pub to: Option<String>,
+    pub subject: Option<String>,
 }
 
 /// Get configurations from environment or from file
 pub fn load_config() -> Result<Config, Error> {
     let mut config;
 
+    // Load config from environment variables
     match envy::from_env::<Config>() {
         Ok(env_config) => {
             config = env_config;
@@ -35,6 +41,32 @@ pub fn load_config() -> Result<Config, Error> {
             panic!("Couldn't load settings from environment: {}", err);
         }
     };
+
+    // SMTP settings from environment variables
+    if std::env::vars().any(|(k, _)| k.starts_with("SMTP_")) {
+        let mut smtp_config = SMTP {
+            server: None,
+            user: None,
+            pass: None,
+            from: None,
+            to: None,
+            subject: None,
+        };
+
+        std::env::vars()
+            .filter(|(k, _)| k.starts_with("SMTP_"))
+            .for_each(|(k, v)| match k.as_str() {
+                "SMTP_USER" => smtp_config.user = Some(v),
+                "SMTP_SERVER" => smtp_config.server = Some(v),
+                "SMTP_PASS" => smtp_config.pass = Some(v),
+                "SMTP_FROM" => smtp_config.from = Some(v),
+                "SMTP_TO" => smtp_config.to = Some(v),
+                "SMTP_SUBJECT" => smtp_config.to = Some(v),
+                _ => {}
+            });
+
+        config.smtp = Some(smtp_config);
+    }
 
     let env_file = std::env::var("ENV_FILE").unwrap_or(".env".to_string());
 
@@ -52,6 +84,7 @@ pub fn load_config() -> Result<Config, Error> {
         };
     };
 
+    debug!("{:?}", config);
     Ok(config)
 }
 
@@ -105,12 +138,14 @@ mod test_load_config {
             project_id: None,
             private_token: None,
             base_url: None,
-            smtp_server: None,
-            smtp_user: None,
-            smtp_pass: None,
-            smtp_from: None,
-            smtp_to: None,
-            smtp_subject: None,
+            smtp: Some(SMTP {
+                server: None,
+                user: None,
+                pass: None,
+                from: None,
+                to: None,
+                subject: None,
+            }),
         };
 
         assert_eq!(confs, config_new);
@@ -143,7 +178,7 @@ mod test_load_config {
 
         let confs = load_config().unwrap();
         assert_eq!("13".to_string(), confs.group_id.unwrap().to_string());
-        assert_eq!("mail.com".to_string(), confs.smtp_server.unwrap());
+        assert_eq!("mail.com".to_string(), confs.smtp.unwrap().server.unwrap());
     }
 
     #[test]
@@ -154,8 +189,12 @@ mod test_load_config {
 
         std::env::set_var("GROUP_ID", "13");
         std::env::set_var("ENV_FILE", ".env.null");
+        std::env::set_var("SMTP_USER", "user.mail");
+        std::env::set_var("SMTP_PASS", "$ecRet@#");
 
         let confs = load_config().unwrap();
         assert_eq!("13".to_string(), confs.group_id.unwrap().to_string());
+        assert_eq!("$ecRet@#", &confs.smtp.clone().unwrap().pass.unwrap());
+        assert_eq!("user.mail", &confs.smtp.unwrap().user.unwrap());
     }
 }
