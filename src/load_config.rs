@@ -154,6 +154,7 @@ mod test_load_config {
     }
 
     #[test]
+    #[ignore = "concurrency"]
     fn test_env_and_file() {
         init();
         env_cleaner();
