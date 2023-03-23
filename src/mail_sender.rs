@@ -1,12 +1,17 @@
-use lettre::message::header::ContentType;
-use lettre::transport::smtp::authentication::Credentials;
-use lettre::{Message, SmtpTransport, Transport};
+// use std::str::FromStr;
+
+// use lettre::message::header::ContentType;
+use lettre::transport::smtp::Error;
+// use lettre::transport::smtp::authentication::Credentials;
+// use lettre::{Message, SmtpTransport, Transport};
+
+extern crate email_address;
 
 use merge::Merge;
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug, Merge, PartialEq, Clone)]
-pub struct SMTP {
+pub struct Smtp {
     pub server: Option<String>,
     pub user: Option<String>,
     pub pass: Option<String>,
@@ -15,9 +20,9 @@ pub struct SMTP {
     pub subject: Option<String>,
 }
 
-impl SMTP {
+impl Smtp {
     pub fn new() -> Self {
-        SMTP {
+        Smtp {
             server: None,
             user: None,
             pass: None,
@@ -27,7 +32,22 @@ impl SMTP {
         }
     }
     pub fn is_valid(self) -> bool {
-        true
+        let mut validity = false;
+        match self.to {
+            Some(to) => match self.from {
+                Some(from) => {
+                    validity = email_address::EmailAddress::is_valid(&from)
+                        && email_address::EmailAddress::is_valid(&to);
+                }
+                None => return false,
+            },
+            None => return false,
+        };
+
+        validity
+    }
+    pub fn send_plain_text(self) -> Result<String, Error> {
+        unimplemented!()
     }
 }
 
@@ -66,19 +86,11 @@ mod test_mail {
 
         let mut passw = String::new();
 
-        let mut get_pass = || {
+        if config.smtp.is_some() && config.smtp.unwrap().pass.is_none() {
             print!("give a password for mail test: ");
-
             if std::io::stdin().read_line(&mut passw).is_ok() {
                 println!("\nPassword received.");
             }
-        };
-        if config.smtp.is_some() {
-            if config.smtp.unwrap().pass.is_none() {
-                get_pass();
-            }
-        } else if config.smtp.unwrap().pass.is_none() {
-            get_pass();
         }
     }
 }
