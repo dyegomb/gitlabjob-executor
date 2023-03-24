@@ -20,8 +20,14 @@ pub struct Config {
     pub smtp: Option<Smtp>,
 }
 
+#[derive(Debug)]
+pub enum ConfigErrors {
+    EnvironError,
+    FileError,
+}
+
 /// Get configurations from environment or from file
-pub fn load_config() -> Result<Config, Error> {
+pub fn load_config() -> Result<Config, ConfigErrors> {
     let mut config;
 
     // Load config from environment variables
@@ -30,7 +36,8 @@ pub fn load_config() -> Result<Config, Error> {
             config = env_config;
         }
         Err(err) => {
-            panic!("Couldn't load settings from environment: {}", err);
+            error!("Error while reading environment variables: {:?}", err);
+            return Err(ConfigErrors::EnvironError);
         }
     };
 
@@ -46,7 +53,7 @@ pub fn load_config() -> Result<Config, Error> {
                 "SMTP_PASS" => smtp_config.pass = Some(v),
                 "SMTP_FROM" => smtp_config.from = Some(v),
                 "SMTP_TO" => smtp_config.to = Some(v),
-                "SMTP_SUBJECT" => smtp_config.to = Some(v),
+                "SMTP_SUBJECT" => smtp_config.subject = Some(v),
                 _ => {}
             });
 
@@ -65,6 +72,7 @@ pub fn load_config() -> Result<Config, Error> {
             }
             Err(err) => {
                 error!("Couldn't read file {}: {}", env_file, err);
+                return Err(ConfigErrors::FileError);
             }
         };
     };
@@ -123,14 +131,7 @@ mod test_load_config {
             project_id: None,
             private_token: None,
             base_url: None,
-            smtp: Some(Smtp {
-                server: None,
-                user: None,
-                pass: None,
-                from: None,
-                to: None,
-                subject: None,
-            }),
+            smtp: None,
         };
 
         assert_eq!(confs, config_new);
