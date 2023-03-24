@@ -1,7 +1,7 @@
 use log::{debug, error};
 use merge::Merge;
 use serde::Deserialize;
-use std::fmt::Error;
+
 
 use crate::mail_sender::Smtp;
 
@@ -63,7 +63,7 @@ pub fn load_config() -> Result<Config, ConfigErrors> {
     let env_file = std::env::var("ENV_FILE").unwrap_or(".env".to_string());
 
     if let Ok(content) = std::fs::read_to_string(&env_file) {
-        debug!("To read file {}.", &env_file);
+        debug!("Reading {} file.", &env_file);
 
         match toml::from_str::<Config>(&content) {
             Ok(toml_text) => {
