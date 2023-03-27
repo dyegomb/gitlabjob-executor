@@ -1,6 +1,6 @@
 // use std::str::FromStr;
 
-use std::fmt::Error;
+// use std::fmt::Error;
 
 use std::str::FromStr;
 
@@ -45,6 +45,9 @@ impl Smtp {
             port: Some(25)
         }
     }
+
+    // https://github.com/lettre/lettre/blob/master/examples/smtp_selfsigned.rs
+    // https://github.com/lettre/lettre/blob/master/examples/autoconfigure.rs
 
     fn get_server_port(&self) -> (String, String) {
         unimplemented!()
@@ -175,20 +178,20 @@ mod test_mail {
     fn test_validade_mail() {
         init();
 
-        let config = load_config().unwrap();
+        let mut config = load_config().unwrap();
 
-        // let mut passw = String::new();
+        let mut passw = String::new();
 
-        // if config.smtp.is_some() && config.smtp.clone().unwrap().pass.is_none() {
-        //     print!("give a password for mail test: ");
-        //     if std::io::stdin().read_line(&mut passw).is_ok() {
-        //         println!("\nPassword received.");
-        //     }
-        // }
+        if config.smtp.is_some() && config.smtp.clone().unwrap().pass.is_none() {
+            print!("give a password for mail test: ");
+            if std::io::stdin().read_line(&mut passw).is_ok() {
+                println!("\nPassword received.");
+            }
+        }
 
-        println!("{:?}", config);
+        config.smtp.as_mut().unwrap().pass = Some(passw);
 
-        assert!(config.smtp.unwrap().is_valid())
+        assert!(config.smtp.as_ref().unwrap().is_valid(), "Configuration isn't valid: {:?}", config)
     }
 
     #[test]
@@ -199,7 +202,7 @@ mod test_mail {
 
         match config.smtp.unwrap().send_plain_text("Test message".to_string()) {
             Ok(_) => assert!(true),
-            Err(e) => assert!(false, "Error while sending email: {:?}", e),
+            Err(e) => panic!("Error while sending email: {:?}", e),
         }
     }
 }
