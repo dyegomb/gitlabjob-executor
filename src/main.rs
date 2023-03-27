@@ -3,11 +3,12 @@ use crate::load_config::load_config;
 
 mod load_config;
 mod mail_sender;
+mod gitlabapi;
 
 fn main() {
     env_logger::init();
 
-    let config = load_config().unwrap();
+    let _config = load_config().unwrap();
 
 
     debug!("Isso é um debug");
