@@ -25,7 +25,7 @@ pub enum MailError {
 #[derive(Deserialize, Debug, Merge, PartialEq, Clone)]
 pub struct Smtp {
     pub server: Option<String>,
-    pub port: Option<usize>,
+    port: Option<usize>,
     pub user: Option<String>,
     pub pass: Option<String>,
     pub from: Option<String>,
