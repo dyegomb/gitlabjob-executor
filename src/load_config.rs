@@ -2,7 +2,6 @@ use log::{debug, error};
 use merge::Merge;
 use serde::Deserialize;
 
-
 use crate::mail_sender::Smtp;
 
 extern crate envy;
@@ -20,14 +19,8 @@ pub struct Config {
     pub smtp: Option<Smtp>,
 }
 
-#[derive(Debug)]
-pub enum ConfigErrors {
-    EnvironError,
-    FileError,
-}
-
 /// Get configurations from environment or from file
-pub fn load_config() -> Result<Config, ConfigErrors> {
+pub fn load_config() -> Result<Config, &'static str> {
     let mut config;
 
     // Load config from environment variables
@@ -37,7 +30,7 @@ pub fn load_config() -> Result<Config, ConfigErrors> {
         }
         Err(err) => {
             error!("Error while reading environment variables: {:?}", err);
-            return Err(ConfigErrors::EnvironError);
+            return Err("Error while reading environment variables");
         }
     };
 
@@ -72,7 +65,7 @@ pub fn load_config() -> Result<Config, ConfigErrors> {
             }
             Err(err) => {
                 error!("Couldn't read file {}: {}", env_file, err);
-                return Err(ConfigErrors::FileError);
+                return Err("Error trying to read environment file");
             }
         };
     };
