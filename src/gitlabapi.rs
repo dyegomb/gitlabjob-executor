@@ -1,5 +1,7 @@
 //https://docs.gitlab.com/ee/api/rest/index.html
+use std::fmt::Display;
 use crate::load_config::Config;
+use env_logger::fmt;
 use log::{debug, error, info, warn};
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde_json::Value;
@@ -17,20 +19,21 @@ pub enum JobScope {
     Manual,
 }
 
-impl JobScope {
-    fn to_str(&self) -> &'static str {
+impl Display for JobScope {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            JobScope::Created => "created",
-            JobScope::Pending => "pending",
-            JobScope::Running => "running",
-            JobScope::Failed => "failed",
-            JobScope::Success => "success",
-            JobScope::Canceled => "canceled",
-            JobScope::Skipped => "skipped",
-            JobScope::WaitingForResource => "waiting_for_resource",
-            JobScope::Manual => "manual",
+            JobScope::Created => write!(f, "created"),
+            JobScope::Pending => write!(f, "pending"),
+            JobScope::Running => write!(f, "running"),
+            JobScope::Failed => write!(f, "failed"),
+            JobScope::Success => write!(f, "success"),
+            JobScope::Canceled => write!(f, "canceled"),
+            JobScope::Skipped => write!(f, "skipped"),
+            JobScope::WaitingForResource => write!(f, "waiting_for_resource"),
+            JobScope::Manual => write!(f, "manual"),
         }
     }
+
 }
 
 pub struct GitlabJOB {
@@ -92,7 +95,7 @@ impl GitlabJOB {
         let uri = format!(
             "/api/v4/projects/{}/jobs?per_page=100&order_by=id&sort=asc&scope={}",
             project.to_string(),
-            scope.to_str()
+            scope
         );
 
         let resp = self.api_get(&uri).send().await.unwrap().text().await;
