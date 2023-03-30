@@ -41,9 +41,9 @@ pub struct GitlabJOB {
 }
 
 impl GitlabJOB {
-    pub fn new(config: &Config) -> Self {
+    pub fn new(config: Config) -> Self {
         GitlabJOB {
-            config: config.clone(),
+            config: config,
         }
     }
 
@@ -156,7 +156,7 @@ mod test_http {
         init();
         let config = load_config().unwrap();
 
-        let api = GitlabJOB::new(&config);
+        let api = GitlabJOB::new(config);
 
         let response = api
             .api_get(&"/api/v4/projects".to_string())
@@ -188,7 +188,7 @@ mod test_http {
 
         let config = load_config().unwrap();
 
-        let api = GitlabJOB::new(&config);
+        let api = GitlabJOB::new(config);
 
         // let response = api.get_grp_jobs(JobScope::Success);
 
@@ -201,7 +201,7 @@ mod test_http {
 
         let config = load_config().unwrap();
 
-        let api = GitlabJOB::new(&config);
+        let api = GitlabJOB::new(config.clone());
 
         let response = api.get_prj_jobs(config.project_id.unwrap(), JobScope::Canceled);
 
