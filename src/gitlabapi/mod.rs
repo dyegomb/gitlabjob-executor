@@ -1,23 +1,14 @@
 //https://docs.gitlab.com/ee/api/rest/index.html
+use crate::gitlabapi::jobinfo::{JobInfo, JobScope};
 use crate::load_config::Config;
-use env_logger::fmt;
+
+// use env_logger::fmt;
 use log::{debug, error, info, warn};
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde_json::Value;
 use std::fmt::Display;
 
-/// Jobs scopes: https://docs.gitlab.com/ee/api/jobs.html#list-project-jobs
-pub enum JobScope {
-    Created,
-    Pending,
-    Running,
-    Failed,
-    Success,
-    Canceled,
-    Skipped,
-    WaitingForResource,
-    Manual,
-}
+mod jobinfo;
 
 impl Display for JobScope {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -80,15 +71,50 @@ impl GitlabJOB {
         }
     }
 
-    pub fn get_group_projs(&self) -> Vec<String> {
-        todo!()
+    pub async fn get_group_projs(&self) -> Vec<u64> {
+        if self.config.group_id.is_none() {
+            return vec![];
+        };
+
+        let uri = format!(
+            "/api/v4/groups/{}/projects?pagination=keyset&per_page=100&order_by=id&sort=asc",
+            self.config.group_id.unwrap()
+        );
+
+        let resp = self.api_get(&uri).send().await.unwrap().text().await;
+
+        let parse_json;
+
+        if let Ok(got_resp) = resp {
+            parse_json = serde_json::from_str::<Value>(&got_resp);
+        } else {
+            panic!("Error parsing json response from {}", &uri);
+        };
+
+        let mut vec_projs: Vec<u64> = vec![];
+
+        if let Ok(json) = parse_json {
+            match json.as_array() {
+                Some(vec_json) => {
+                    vec_json.iter().for_each(|proj| {
+                        let val = proj["id"].as_u64().unwrap();
+                        vec_projs.push(val);
+                    });
+                }
+                None => {
+                    debug!("No jobs found for {}", uri);
+                    return vec![];
+                }
+            }
+        }
+
+        vec_projs
     }
 
-    pub async fn get_prj_jobs(&self, project: u64, scope: JobScope) -> Vec<u64> {
+    pub async fn get_proj_jobs(&self, project: u64, scope: JobScope) -> Vec<u64> {
         let uri = format!(
             "/api/v4/projects/{}/jobs?per_page=100&order_by=id&sort=asc&scope={}",
-            project,
-            scope
+            project, scope
         );
 
         let resp = self.api_get(&uri).send().await.unwrap().text().await;
@@ -119,13 +145,15 @@ impl GitlabJOB {
 
         vec_jobs
     }
+
+    pub fn get_jobinfo(&self, jobid: u64) -> JobInfo {
+        todo!()
+    }
 }
 
 #[cfg(test)]
 mod test_http {
     use std::io::Write;
-
-    // use serde::Deserializer;
 
     use crate::load_config;
 
@@ -176,11 +204,14 @@ mod test_http {
 
         let config = load_config().unwrap();
 
-        let api = GitlabJOB::new(config);
+        let gitlabjob = GitlabJOB::new(config);
 
-        // let response = api.get_grp_jobs(JobScope::Success);
+        let response = gitlabjob.get_group_projs();
 
-        // debug!("Response: {}", response);
+        response
+            .await
+            .iter()
+            .for_each(|proj| debug!("Got project: {}", proj));
     }
 
     #[tokio::test]
@@ -191,11 +222,28 @@ mod test_http {
 
         let api = GitlabJOB::new(config.clone());
 
-        let response = api.get_prj_jobs(config.project_id.unwrap(), JobScope::Canceled);
+        let response = api.get_proj_jobs(config.project_id.unwrap(), JobScope::Canceled);
 
         response
             .await
             .iter()
             .for_each(|job| debug!("Got job: {}", job));
+    }
+
+    #[tokio::test]
+    async fn test_get_job_info() {
+        init();
+
+        let config = load_config().unwrap();
+
+        let api = GitlabJOB::new(config.clone());
+
+        let response = api.get_proj_jobs(config.project_id.unwrap(), JobScope::Canceled);
+
+        let first_jobid = response.await[0];
+
+        let jobinfo = api.get_jobinfo(first_jobid.to_owned());
+
+
     }
 }
