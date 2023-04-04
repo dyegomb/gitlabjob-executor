@@ -21,6 +21,7 @@ pub struct JobInfo {
     // "branch": ref_source or "não informada",
     // "versao_tag": prod_tag or "não informada",
     pub id: Option<u64>,
+    pub status: Option<JobScope>,
     pub url: Option<String>,
     pub proj_name: Option<String>,
     pub pipeline_id: Option<u64>,
@@ -34,6 +35,7 @@ impl JobInfo {
     pub fn new(
         id: Option<u64>,
         url: Option<String>,
+        status: Option<JobScope>,
         proj_name: Option<String>,
         pipeline_id: Option<u64>,
         source_id: Option<String>,
@@ -50,6 +52,7 @@ impl JobInfo {
             user_mail,
             branch,
             git_tag,
+            status,
         }
     }
     pub fn default() -> Self {
@@ -62,6 +65,7 @@ impl JobInfo {
             user_mail: None,
             branch: None,
             git_tag: None,
+            status: None,
         }
     }
 }

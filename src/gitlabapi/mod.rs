@@ -238,11 +238,11 @@ mod test_http {
 
         let api = GitlabJOB::new(config.clone());
 
-        let response = api.get_proj_jobs(config.project_id.unwrap(), JobScope::Canceled);
+        let response = api.get_proj_jobs(config.project_id.unwrap(), JobScope::Canceled).await;
 
-        let first_jobid = response.await[0];
+        // let first_jobid = response.await[0];
 
-        let jobinfo = api.get_jobinfo(first_jobid.to_owned());
+        let jobinfo = api.get_jobinfo(response[0]);
 
 
     }
