@@ -12,8 +12,8 @@ extern crate toml;
 #[derive(Deserialize, Debug, Merge, PartialEq, Clone)]
 #[serde(rename_all = "lowercase")]
 pub struct Config {
-    pub group_id: Option<usize>,
-    pub project_id: Option<usize>,
+    pub group_id: Option<u64>,
+    pub project_id: Option<u64>,
     pub private_token: Option<String>,
     pub base_url: Option<String>,
     pub smtp: Option<Smtp>,

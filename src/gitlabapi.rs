@@ -1,10 +1,10 @@
 //https://docs.gitlab.com/ee/api/rest/index.html
-use std::fmt::Display;
 use crate::load_config::Config;
 use env_logger::fmt;
 use log::{debug, error, info, warn};
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde_json::Value;
+use std::fmt::Display;
 
 /// Jobs scopes: https://docs.gitlab.com/ee/api/jobs.html#list-project-jobs
 pub enum JobScope {
@@ -33,7 +33,6 @@ impl Display for JobScope {
             JobScope::Manual => write!(f, "manual"),
         }
     }
-
 }
 
 pub struct GitlabJOB {
@@ -42,9 +41,7 @@ pub struct GitlabJOB {
 
 impl GitlabJOB {
     pub fn new(config: Config) -> Self {
-        GitlabJOB {
-            config: config,
-        }
+        GitlabJOB { config: config }
     }
 
     fn api_builder(&self) -> reqwest::ClientBuilder {
@@ -87,20 +84,15 @@ impl GitlabJOB {
         todo!()
     }
 
-    pub async fn get_prj_jobs(
-        &self,
-        project: usize,
-        scope: JobScope,
-    ) -> Vec<Value> {
+    pub async fn get_prj_jobs(&self, project: u64, scope: JobScope) -> Vec<u64> {
         let uri = format!(
             "/api/v4/projects/{}/jobs?per_page=100&order_by=id&sort=asc&scope={}",
-            project.to_string(),
+            project,
             scope
         );
 
         let resp = self.api_get(&uri).send().await.unwrap().text().await;
 
-        // let mut tmp_vec = vec![];
         let parse_json;
         if let Ok(got_resp) = resp {
             parse_json = serde_json::from_str::<Value>(&got_resp);
@@ -108,26 +100,22 @@ impl GitlabJOB {
             panic!("Error parsing json response from {}", &uri);
         };
 
-        let mut vec_jobs: Vec<Value> = vec![];
+        let mut vec_jobs: Vec<u64> = vec![];
 
         if let Ok(json) = parse_json {
             match json.as_array() {
                 Some(vec_json) => {
                     vec_json.iter().for_each(|proj| {
-                        let val = proj.clone();
+                        let val = proj["id"].as_u64().unwrap();
                         vec_jobs.push(val);
                     });
                 }
                 None => {
                     debug!("No jobs found for {}", uri);
-                    return vec![]
+                    return vec![];
                 }
             }
         };
-
-        // debug!("First job gotten: {:?}", &vec_jobs[0]);
-
-        // vec_jobs.iter().for_each(|v| println!("{v}"));
 
         vec_jobs
     }
@@ -205,8 +193,9 @@ mod test_http {
 
         let response = api.get_prj_jobs(config.project_id.unwrap(), JobScope::Canceled);
 
-        response.await
+        response
+            .await
             .iter()
-            .for_each(|job| {debug!("Got job: {}", job["id"])});
+            .for_each(|job| debug!("Got job: {}", job));
     }
 }
