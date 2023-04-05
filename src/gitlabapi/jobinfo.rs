@@ -1,4 +1,5 @@
 /// Jobs scopes: https://docs.gitlab.com/ee/api/jobs.html#list-project-jobs
+#[derive(Debug)]
 pub enum JobScope {
     Created,
     Pending,
@@ -11,6 +12,7 @@ pub enum JobScope {
     Manual,
 }
 
+#[derive(Debug)]
 pub struct JobInfo {
     // 'jobid': jobs_json.get("id"),
     // 'job_url': jobs_json.get("web_url"),
@@ -31,30 +33,8 @@ pub struct JobInfo {
     pub git_tag: Option<String>,
 }
 
+
 impl JobInfo {
-    pub fn new(
-        id: Option<u64>,
-        url: Option<String>,
-        status: Option<JobScope>,
-        proj_name: Option<String>,
-        pipeline_id: Option<u64>,
-        source_id: Option<String>,
-        user_mail: Option<String>,
-        branch: Option<String>,
-        git_tag: Option<String>,
-    ) -> Self {
-        Self {
-            id,
-            url,
-            proj_name,
-            pipeline_id,
-            source_id,
-            user_mail,
-            branch,
-            git_tag,
-            status,
-        }
-    }
     pub fn default() -> Self {
         Self {
             id: None,

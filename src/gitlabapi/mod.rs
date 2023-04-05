@@ -6,7 +6,8 @@ use crate::load_config::Config;
 use log::{debug, error, info, warn};
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde_json::Value;
-use std::fmt::Display;
+use std::collections::HashMap;
+use std::fmt::{Display, format};
 
 mod jobinfo;
 
@@ -111,7 +112,7 @@ impl GitlabJOB {
         vec_projs
     }
 
-    pub async fn get_proj_jobs(&self, project: u64, scope: JobScope) -> Vec<u64> {
+    pub async fn get_proj_jobs(&self, project: u64, scope: JobScope) -> HashMap<u64,Vec<u64>> {
         let uri = format!(
             "/api/v4/projects/{}/jobs?per_page=100&order_by=id&sort=asc&scope={}",
             project, scope
@@ -123,31 +124,36 @@ impl GitlabJOB {
         if let Ok(got_resp) = resp {
             parse_json = serde_json::from_str::<Value>(&got_resp);
         } else {
+            error!("Error parsing json response {}", &resp.unwrap_or(uri.clone()));
             panic!("Error parsing json response from {}", &uri);
         };
 
-        let mut vec_jobs: Vec<u64> = vec![];
+        let mut map_jobs: HashMap<u64,Vec<u64>> = HashMap::new();
+        map_jobs.insert(project, vec![]);
 
         if let Ok(json) = parse_json {
             match json.as_array() {
                 Some(vec_json) => {
                     vec_json.iter().for_each(|proj| {
                         let val = proj["id"].as_u64().unwrap();
-                        vec_jobs.push(val);
+                        map_jobs.get_mut(&project).unwrap().push(val);
                     });
                 }
                 None => {
-                    debug!("No jobs found for {}", uri);
-                    return vec![];
+                    warn!("No jobs found in {}", uri);
                 }
             }
         };
 
-        vec_jobs
+        map_jobs
     }
 
-    pub fn get_jobinfo(&self, jobid: u64) -> JobInfo {
-        todo!()
+    pub async fn get_jobinfo(&self, projid: u64, jobid: u64) -> JobInfo {
+        let uri = format!("/api/v4/projects/{projid}/jobs/{jobid}");
+
+        let resp = self.api_get(&uri).send().await.unwrap().text().await;
+
+        JobInfo::default()
     }
 }
 
@@ -166,7 +172,6 @@ mod test_http {
             .try_init();
     }
 
-    // #[test]
     #[tokio::test]
     async fn test_api_get() {
         init();
@@ -182,7 +187,6 @@ mod test_http {
             .text()
             .await;
 
-        // debug!("{}", response.as_ref().unwrap());
 
         let parsed_json: Value = serde_json::from_str(response.as_ref().unwrap()).unwrap();
 
@@ -227,7 +231,7 @@ mod test_http {
         response
             .await
             .iter()
-            .for_each(|job| debug!("Got job: {}", job));
+            .for_each(|job| debug!("Got: {:?}", job));
     }
 
     #[tokio::test]
@@ -240,10 +244,14 @@ mod test_http {
 
         let response = api.get_proj_jobs(config.project_id.unwrap(), JobScope::Canceled).await;
 
-        // let first_jobid = response.await[0];
+        let job_test = response
+            .iter()
+            .next()
+            .unwrap();
+        
 
-        let jobinfo = api.get_jobinfo(response[0]);
+        let jobinfo = api.get_jobinfo(job_test.0.to_owned(), job_test.1[0]).await;
 
-
+        debug!("{:?}", jobinfo);
     }
 }
