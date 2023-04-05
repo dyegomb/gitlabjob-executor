@@ -112,26 +112,37 @@ impl GitlabJOB {
         vec_projs
     }
 
+    fn parse_json(text: String) -> Option<Value> {
+        if let Ok(parsed_json) = serde_json::from_str::<Value>(&text) {
+            debug!("JSON output: {:?}", parsed_json);
+            Some(parsed_json)
+        } else {
+            error!("Error while parsing to json from: \n{}", text);
+            None
+        }
+    }
+
     pub async fn get_proj_jobs(&self, project: u64, scope: JobScope) -> HashMap<u64,Vec<u64>> {
         let uri = format!(
             "/api/v4/projects/{}/jobs?per_page=100&order_by=id&sort=asc&scope={}",
             project, scope
         );
 
+        todo!("Refactor this!");
         let resp = self.api_get(&uri).send().await.unwrap().text().await;
 
         let parse_json;
-        if let Ok(got_resp) = resp {
-            parse_json = serde_json::from_str::<Value>(&got_resp);
+        if let Ok(resp_text) = resp {
+            parse_json = Self::parse_json(resp_text)
         } else {
-            error!("Error parsing json response {}", &resp.unwrap_or(uri.clone()));
-            panic!("Error parsing json response from {}", &uri);
-        };
+            error!("Error getting response from {}", &uri);
+            return HashMap::new();
+        }
 
         let mut map_jobs: HashMap<u64,Vec<u64>> = HashMap::new();
         map_jobs.insert(project, vec![]);
 
-        if let Ok(json) = parse_json {
+        if let Some(json) = parse_json {
             match json.as_array() {
                 Some(vec_json) => {
                     vec_json.iter().for_each(|proj| {
@@ -148,14 +159,43 @@ impl GitlabJOB {
         map_jobs
     }
 
-    pub async fn get_jobinfo(&self, projid: u64, jobid: u64) -> JobInfo {
+    pub async fn get_jobinfo(&self, projid: u64, jobid: u64) -> Option<JobInfo> {
         let uri = format!("/api/v4/projects/{projid}/jobs/{jobid}");
 
-        let resp = self.api_get(&uri).send().await.unwrap().text().await;
+        // let resp = self.api_get(&uri).send().await.unwrap().text().await;
+        let resp = self.api_get(&uri).send().await;
 
-        JobInfo::default()
+        let parse_json;
+        match resp {
+            Ok(got_resp) => {
+                match got_resp.text().await {
+                    Ok(text) => {
+                        parse_json = Self::parse_json(text);
+                    }
+                    Err(_) => return None,
+                }
+            }
+            Err(e) => {
+                    error!("Error getting response from {}: {}", &uri, e);
+                    return None;
+                }
+        }
+
+        if let Some(json) = parse_json {
+            let mut jobinfo = JobInfo::default();
+
+            jobinfo.id = json["id"].as_u64();
+            todo!();
+            
+
+            return Some(jobinfo);
+        };
+
+        None
     }
 }
+
+// ########################################### TESTS ###########################################
 
 #[cfg(test)]
 mod test_http {
@@ -188,7 +228,7 @@ mod test_http {
             .await;
 
 
-        let parsed_json: Value = serde_json::from_str(response.as_ref().unwrap()).unwrap();
+        let parsed_json: Value = serde_json::from_str(response.as_deref().unwrap()).unwrap();
 
         parsed_json.as_array().iter().for_each(|projects| {
             projects.iter().for_each(|proj| {
