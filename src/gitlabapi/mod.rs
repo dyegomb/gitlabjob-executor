@@ -11,22 +11,6 @@ use std::fmt::{format, Display};
 
 mod jobinfo;
 
-impl Display for JobScope {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            JobScope::Created => write!(f, "created"),
-            JobScope::Pending => write!(f, "pending"),
-            JobScope::Running => write!(f, "running"),
-            JobScope::Failed => write!(f, "failed"),
-            JobScope::Success => write!(f, "success"),
-            JobScope::Canceled => write!(f, "canceled"),
-            JobScope::Skipped => write!(f, "skipped"),
-            JobScope::WaitingForResource => write!(f, "waiting_for_resource"),
-            JobScope::Manual => write!(f, "manual"),
-        }
-    }
-}
-
 pub struct GitlabJOB {
     config: Config,
 }
@@ -82,19 +66,25 @@ impl GitlabJOB {
             self.config.group_id.unwrap()
         );
 
-        let resp = self.api_get(&uri).send().await.unwrap().text().await;
+        let resp = self.api_get(&uri).send().await;
 
-        let parse_json;
-
-        if let Ok(got_resp) = resp {
-            parse_json = serde_json::from_str::<Value>(&got_resp);
-        } else {
-            panic!("Error parsing json response from {}", &uri);
+        let parse_json = match resp {
+            Ok(response) => match response.text().await {
+                Ok(text) => match serde_json::from_str::<Value>(&text) {
+                    Ok(json) => Some(json),
+                    Err(_) => None
+                }
+                Err(_) => None,
+            },
+            Err(e) => {
+                error!("Error while getting {}: {}", &uri, e);
+                None
+            }
         };
 
         let mut vec_projs: Vec<u64> = vec![];
 
-        if let Ok(json) = parse_json {
+        if let Some(json) = parse_json {
             match json.as_array() {
                 Some(vec_json) => {
                     vec_json.iter().for_each(|proj| {
@@ -164,28 +154,25 @@ impl GitlabJOB {
     pub async fn get_jobinfo(&self, projid: u64, jobid: u64) -> Option<JobInfo> {
         let uri = format!("/api/v4/projects/{projid}/jobs/{jobid}");
 
-        // let resp = self.api_get(&uri).send().await.unwrap().text().await;
         let resp = self.api_get(&uri).send().await;
 
-        let parse_json;
-        match resp {
+        let parse_json = match resp {
             Ok(got_resp) => match got_resp.text().await {
-                Ok(text) => {
-                    parse_json = Self::parse_json(text);
-                }
-                Err(_) => return None,
+                Ok(text) => Self::parse_json(text),
+                Err(_) => None,
             },
             Err(e) => {
                 error!("Error getting response from {}: {}", &uri, e);
-                return None;
+                None
             }
-        }
+        };
 
         if let Some(json) = parse_json {
             let mut jobinfo = JobInfo::default();
 
             jobinfo.id = json["id"].as_u64();
-            // todo!();
+            jobinfo.status = Some(JobScope::from(json["status"].as_str().unwrap().to_string()));
+            // jobinfo.
 
             return Some(jobinfo);
         };
