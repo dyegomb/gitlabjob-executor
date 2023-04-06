@@ -58,6 +58,15 @@ pub struct JobInfo {
     // "user_mail": user_mail,
     // "branch": ref_source or "não informada",
     // "versao_tag": prod_tag or "não informada",
+            //    if chave == "trigger_email":
+            //     user_mail = item.get("value")
+            // elif chave == "PROD_TAG":
+            //     prod_tag = item.get("value")
+            // elif chave == "ref_source":
+            //     ref_source = item.get("value")
+            // elif chave == "source_id":
+            //     source_id = item.get("value")
+
     pub id: Option<u64>,
     pub status: Option<JobScope>,
     pub url: Option<String>,

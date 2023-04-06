@@ -72,8 +72,8 @@ impl GitlabJOB {
             Ok(response) => match response.text().await {
                 Ok(text) => match serde_json::from_str::<Value>(&text) {
                     Ok(json) => Some(json),
-                    Err(_) => None
-                }
+                    Err(_) => None,
+                },
                 Err(_) => None,
             },
             Err(e) => {
@@ -151,6 +151,41 @@ impl GitlabJOB {
         map_jobs
     }
 
+    async fn get_pipe_vars(&self, projid: u64, pipelineid: u64) -> HashMap<String, String> {
+        // uri = f'/api/v4/projects/{projid}/pipelines/{pipid}/variables'
+        let uri = format!("/api/v4/projects/{projid}/pipelines/{pipelineid}/variables");
+
+        let mut hashmap_out: HashMap<String, String> = HashMap::new();
+
+        let resp = self.api_get(&uri).send().await;
+
+        match resp {
+            Ok(got_resp) => match got_resp.text().await {
+                Ok(text) => match Self::parse_json(text) {
+                    Some(vars) => {
+                        vars.to_owned().as_array().map(|vec_var| {
+                            vec_var.iter().for_each(|var| {
+                                if let Some(key) = var["key"].as_str() {
+                                    if let Some(value) = var["value"].as_str() {
+                                        hashmap_out.insert(key.to_owned(), value.to_owned());
+                                    };
+                                };
+                            });
+                        });
+                    }
+                    None => todo!(),
+                },
+                Err(_) => todo!(),
+            },
+            Err(e) => {
+                error!("Error getting response from {}: {}", &uri, e);
+                todo!();
+            }
+        };
+
+        hashmap_out
+    }
+
     pub async fn get_jobinfo(&self, projid: u64, jobid: u64) -> Option<JobInfo> {
         let uri = format!("/api/v4/projects/{projid}/jobs/{jobid}");
 
@@ -171,8 +206,19 @@ impl GitlabJOB {
             let mut jobinfo = JobInfo::default();
 
             jobinfo.id = json["id"].as_u64();
-            jobinfo.status = Some(JobScope::from(json["status"].as_str().unwrap().to_string()));
-            // jobinfo.
+            jobinfo.status = json["status"]
+                .as_str()
+                .map(|v| JobScope::from(v.to_owned()));
+            jobinfo.url = json["web_url"].as_str().map(|v| v.to_owned());
+            jobinfo.proj_name = json["name"].as_str().map(|v| v.to_owned());
+
+            match json["pipeline"].as_object() {
+                Some(pipe_json) => {
+                    debug!("Pipeline Infos: {:?}", pipe_json);
+                    jobinfo.pipeline_id = pipe_json["id"].as_u64();
+                }
+                None => {}
+            };
 
             return Some(jobinfo);
         };
@@ -276,5 +322,31 @@ mod test_http {
         let jobinfo = api.get_jobinfo(job_test.0.to_owned(), job_test.1[0]).await;
 
         debug!("{:?}", jobinfo);
+    }
+
+    #[tokio::test]
+    async fn test_get_specif_job() {
+        init();
+
+        let config = load_config().unwrap();
+
+        let api = GitlabJOB::new(config.clone());
+
+        let jobinfo = api.get_jobinfo(513_u64, 20597_u64).await;
+
+        debug!("{:?}", jobinfo);
+    }
+
+    #[tokio::test]
+    async fn test_get_pipe_vars() {
+        init();
+
+        let config = load_config().unwrap();
+
+        let api = GitlabJOB::new(config.clone());
+
+        let pipe_vars = api.get_pipe_vars(513_u64, 15253_u64).await;
+
+        debug!("HashMap from pipeline variables: {:?}", pipe_vars);
     }
 }
