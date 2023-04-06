@@ -16,6 +16,7 @@ pub struct Config {
     pub project_id: Option<u64>,
     pub private_token: Option<String>,
     pub base_url: Option<String>,
+    pub production_tag_key: Option<String>,
     pub smtp: Option<Smtp>,
 }
 
@@ -124,6 +125,7 @@ mod test_load_config {
             project_id: None,
             private_token: None,
             base_url: None,
+            production_tag_key: None,
             smtp: None,
         };
 

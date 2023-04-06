@@ -7,7 +7,7 @@ use log::{debug, error, info, warn};
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde_json::Value;
 use std::collections::HashMap;
-use std::fmt::{format, Display};
+// use std::fmt::{format, Display};
 
 mod jobinfo;
 
@@ -152,36 +152,27 @@ impl GitlabJOB {
     }
 
     async fn get_pipe_vars(&self, projid: u64, pipelineid: u64) -> HashMap<String, String> {
-        // uri = f'/api/v4/projects/{projid}/pipelines/{pipid}/variables'
         let uri = format!("/api/v4/projects/{projid}/pipelines/{pipelineid}/variables");
 
         let mut hashmap_out: HashMap<String, String> = HashMap::new();
 
         let resp = self.api_get(&uri).send().await;
 
-        match resp {
-            Ok(got_resp) => match got_resp.text().await {
-                Ok(text) => match Self::parse_json(text) {
-                    Some(vars) => {
-                        vars.to_owned().as_array().map(|vec_var| {
-                            vec_var.iter().for_each(|var| {
-                                if let Some(key) = var["key"].as_str() {
-                                    if let Some(value) = var["value"].as_str() {
-                                        hashmap_out.insert(key.to_owned(), value.to_owned());
-                                    };
-                                };
-                            });
+        if let Ok(got_resp) = resp {
+            if let Ok(text) = got_resp.text().await {
+                if let Some(vars_obj) = Self::parse_json(text) {
+                    if let Some(vec_vars) = vars_obj.as_array() {
+                        vec_vars.iter().for_each(|var| {
+                            if let Some(key) = var["key"].as_str() {
+                                if let Some(value) = var["value"].as_str() {
+                                    hashmap_out.insert(key.to_owned(), value.to_owned());
+                                }
+                            }
                         });
                     }
-                    None => todo!(),
-                },
-                Err(_) => todo!(),
-            },
-            Err(e) => {
-                error!("Error getting response from {}: {}", &uri, e);
-                todo!();
+                }
             }
-        };
+        }
 
         hashmap_out
     }
@@ -212,13 +203,48 @@ impl GitlabJOB {
             jobinfo.url = json["web_url"].as_str().map(|v| v.to_owned());
             jobinfo.proj_name = json["name"].as_str().map(|v| v.to_owned());
 
-            match json["pipeline"].as_object() {
-                Some(pipe_json) => {
-                    debug!("Pipeline Infos: {:?}", pipe_json);
-                    jobinfo.pipeline_id = pipe_json["id"].as_u64();
+            if let Some(pipe_info) = json["pipeline"].as_object() {
+                let mut variables = HashMap::new();
+                if let Some(pipe_id) = pipe_info["id"].as_u64() {
+                    jobinfo.pipeline_id = Some(pipe_id);
+                    variables.extend(self.get_pipe_vars(projid, pipe_id).await);
                 }
-                None => {}
+                jobinfo.user_mail = match variables.get("trigger_email") {
+                    Some(mail) => Some(mail.to_owned()),
+                    None => match json["commit"].as_object() {
+                        Some(commit_obj) => commit_obj["committer_email"]
+                            .as_str()
+                            .map(|email| email.to_owned()),
+                        None => None,
+                    },
+                };
+
+                if let Some(prod_tag_key) = &self.config.production_tag_key {
+                    jobinfo.git_tag = variables.get(prod_tag_key).cloned();
+                } else {
+                    jobinfo.git_tag = match json["commit"].as_object() {
+                        Some(commit_obj) => {
+                            commit_obj.get("ref_name").map(|tag| match tag.as_str(){
+                                Some(tag) => tag.to_owned(),
+                                None => "".to_owned(),
+                            })
+                        },
+                        None => None,
+                    }
+                };
             };
+
+            // jobinfo.git_tag =
+            //     match variables.get(self.config.production_tag_key.as_ref().unwrap()) {
+            //         Some(tag) => Some(tag.to_owned()),
+            //         None => match json["commit"].as_object() {
+            //             Some(commit_obj) => {
+            //                 commit_obj["ref_name"].as_str().map(|tag| tag.to_owned())
+            //             }
+            //             None => None,
+            //         },
+            //     }
+            // }
 
             return Some(jobinfo);
         };
