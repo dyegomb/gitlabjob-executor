@@ -3,6 +3,7 @@ use crate::gitlabapi::jobinfo::{JobInfo, JobScope};
 use crate::load_config::Config;
 
 // use env_logger::fmt;
+use futures::join;
 use log::{debug, error, info, warn};
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde_json::Value;
@@ -10,6 +11,7 @@ use std::collections::HashMap;
 // use std::fmt::{format, Display};
 
 mod jobinfo;
+mod mod_tests;
 
 pub struct GitlabJOB {
     config: Config,
@@ -68,6 +70,7 @@ impl GitlabJOB {
 
         let resp = self.api_get(&uri).send().await;
 
+        // ================ REFAC
         let parse_json = match resp {
             Ok(response) => match response.text().await {
                 Ok(text) => match serde_json::from_str::<Value>(&text) {
@@ -123,6 +126,8 @@ impl GitlabJOB {
         let mut map_jobs: HashMap<u64, Vec<u64>> = HashMap::new();
         map_jobs.insert(project, vec![]);
 
+        // ============= REFAC
+
         let parse_json = match resp {
             Ok(got_resp) => match got_resp.text().await {
                 Ok(text) => Self::parse_json(text),
@@ -177,10 +182,36 @@ impl GitlabJOB {
         hashmap_out
     }
 
+    async fn get_proj_info(&self, projid: u64) -> HashMap<String, String> {
+
+        let uri = format!("/api/v4/projects/{projid}");
+
+        let resp = self.api_get(&uri).send().await;
+
+        let parse_json = match resp {
+            Ok(got_resp) => match got_resp.text().await {
+                Ok(text) => Self::parse_json(text),
+                Err(_) => None,
+            },
+            Err(e) => {
+                error!("Error getting response from {}: {}", &uri, e);
+                None
+            }
+        };
+
+        let mut hash_map: HashMap<String, String> = HashMap::new();
+        if let Some(json) = parse_json {
+            if let Some(name) = json["name"].as_str() {
+                hash_map.insert("name".to_owned(), name.to_owned());
+            }
+        }
+        hash_map
+    }
+
     pub async fn get_jobinfo(&self, projid: u64, jobid: u64) -> Option<JobInfo> {
         let uri = format!("/api/v4/projects/{projid}/jobs/{jobid}");
 
-        let resp = self.api_get(&uri).send().await;
+        let (resp, project_infos) = join!(self.api_get(&uri).send(), self.get_proj_info(projid));
 
         let parse_json = match resp {
             Ok(got_resp) => match got_resp.text().await {
@@ -201,7 +232,10 @@ impl GitlabJOB {
                 .as_str()
                 .map(|v| JobScope::from(v.to_owned()));
             jobinfo.url = json["web_url"].as_str().map(|v| v.to_owned());
-            jobinfo.proj_name = json["name"].as_str().map(|v| v.to_owned());
+            // jobinfo.proj_name = json["name"].as_str().map(|v| v.to_owned());
+            if let Some(proj_name) = project_infos.get("name") {
+                jobinfo.proj_name = Some(proj_name.to_owned());
+            };
 
             if let Some(pipe_info) = json["pipeline"].as_object() {
                 let mut variables = HashMap::new();
@@ -224,155 +258,19 @@ impl GitlabJOB {
                 } else {
                     jobinfo.git_tag = match json["commit"].as_object() {
                         Some(commit_obj) => {
-                            commit_obj.get("ref_name").map(|tag| match tag.as_str(){
+                            commit_obj.get("ref_name").map(|tag| match tag.as_str() {
                                 Some(tag) => tag.to_owned(),
                                 None => "".to_owned(),
                             })
-                        },
+                        }
                         None => None,
                     }
                 };
             };
 
-            // jobinfo.git_tag =
-            //     match variables.get(self.config.production_tag_key.as_ref().unwrap()) {
-            //         Some(tag) => Some(tag.to_owned()),
-            //         None => match json["commit"].as_object() {
-            //             Some(commit_obj) => {
-            //                 commit_obj["ref_name"].as_str().map(|tag| tag.to_owned())
-            //             }
-            //             None => None,
-            //         },
-            //     }
-            // }
-
             return Some(jobinfo);
         };
 
         None
-    }
-}
-
-// ########################################### TESTS ###########################################
-
-#[cfg(test)]
-mod test_http {
-    use std::io::Write;
-
-    use crate::load_config;
-
-    use super::*;
-
-    fn init() {
-        let _ = env_logger::builder()
-            .filter_level(log::LevelFilter::max())
-            .is_test(true)
-            .try_init();
-    }
-
-    #[tokio::test]
-    async fn test_api_get() {
-        init();
-        let config = load_config().unwrap();
-
-        let api = GitlabJOB::new(config);
-
-        let response = api
-            .api_get(&"/api/v4/projects".to_string())
-            .send()
-            .await
-            .unwrap()
-            .text()
-            .await;
-
-        let parsed_json: Value = serde_json::from_str(response.as_deref().unwrap()).unwrap();
-
-        parsed_json.as_array().iter().for_each(|projects| {
-            projects.iter().for_each(|proj| {
-                debug!("Project ID: {}", proj["id"]);
-                debug!("Project links: {}", proj["_links"]);
-            });
-        });
-
-        let _ = std::fs::File::create("/tmp/test.json")
-            .unwrap()
-            .write(response.unwrap().as_bytes());
-    }
-
-    #[tokio::test]
-    async fn test_get_group_projects() {
-        init();
-
-        let config = load_config().unwrap();
-
-        let gitlabjob = GitlabJOB::new(config);
-
-        let response = gitlabjob.get_group_projs();
-
-        response
-            .await
-            .iter()
-            .for_each(|proj| debug!("Got project: {}", proj));
-    }
-
-    #[tokio::test]
-    async fn test_get_prj_jobs() {
-        init();
-
-        let config = load_config().unwrap();
-
-        let api = GitlabJOB::new(config.clone());
-
-        let response = api.get_proj_jobs(config.project_id.unwrap(), JobScope::Canceled);
-
-        response
-            .await
-            .iter()
-            .for_each(|job| debug!("Got: {:?}", job));
-    }
-
-    #[tokio::test]
-    async fn test_get_job_info() {
-        init();
-
-        let config = load_config().unwrap();
-
-        let api = GitlabJOB::new(config.clone());
-
-        let response = api
-            .get_proj_jobs(config.project_id.unwrap(), JobScope::Canceled)
-            .await;
-
-        let job_test = response.iter().next().unwrap();
-
-        let jobinfo = api.get_jobinfo(job_test.0.to_owned(), job_test.1[0]).await;
-
-        debug!("{:?}", jobinfo);
-    }
-
-    #[tokio::test]
-    async fn test_get_specif_job() {
-        init();
-
-        let config = load_config().unwrap();
-
-        let api = GitlabJOB::new(config.clone());
-
-        let jobinfo = api.get_jobinfo(513_u64, 20597_u64).await;
-
-        debug!("{:?}", jobinfo);
-    }
-
-    #[tokio::test]
-    async fn test_get_pipe_vars() {
-        init();
-
-        let config = load_config().unwrap();
-
-        let api = GitlabJOB::new(config.clone());
-
-        let pipe_vars = api.get_pipe_vars(513_u64, 15253_u64).await;
-
-        debug!("HashMap from pipeline variables: {:?}", pipe_vars);
     }
 }
