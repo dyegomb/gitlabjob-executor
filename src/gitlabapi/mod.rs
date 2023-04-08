@@ -20,6 +20,16 @@ impl GitlabJOB {
         GitlabJOB { config }
     }
 
+    fn parse_json(text: String) -> Option<Value> {
+        if let Ok(parsed_json) = serde_json::from_str::<Value>(&text) {
+            debug!("Got JSON: {:?}", text);
+            Some(parsed_json)
+        } else {
+            error!("Error while parsing to json from: \n{}", text);
+            None
+        }
+    }
+
     fn api_builder(&self) -> reqwest::ClientBuilder {
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -56,6 +66,21 @@ impl GitlabJOB {
         }
     }
 
+    async fn get_json(&self, url: &String) -> Option<Value> {
+        let resp = self.api_get(url).send().await;
+
+        match resp {
+            Ok(response) => match response.text().await {
+                Ok(text) => Self::parse_json(text),
+                Err(_) => None,
+            },
+            Err(e) => {
+                error!("Error while calling {url}: {e}");
+                None
+            }
+        }
+    }
+
     pub async fn get_group_projs(&self) -> Vec<u64> {
         if self.config.group_id.is_none() {
             return vec![];
@@ -66,6 +91,7 @@ impl GitlabJOB {
             self.config.group_id.unwrap()
         );
 
+        // ================= REFAC
         let resp = self.api_get(&uri).send().await;
 
         let parse_json = match resp {
@@ -102,22 +128,13 @@ impl GitlabJOB {
         vec_projs
     }
 
-    fn parse_json(text: String) -> Option<Value> {
-        if let Ok(parsed_json) = serde_json::from_str::<Value>(&text) {
-            debug!("JSON output: {:?}", parsed_json);
-            Some(parsed_json)
-        } else {
-            error!("Error while parsing to json from: \n{}", text);
-            None
-        }
-    }
-
     pub async fn get_proj_jobs(&self, project: u64, scope: JobScope) -> HashMap<u64, Vec<u64>> {
         let uri = format!(
             "/api/v4/projects/{}/jobs?per_page=100&order_by=id&sort=asc&scope={}",
             project, scope
         );
 
+        // ================= REFAC
         let resp = self.api_get(&uri).send().await;
 
         let mut map_jobs: HashMap<u64, Vec<u64>> = HashMap::new();
@@ -156,6 +173,7 @@ impl GitlabJOB {
 
         let mut hashmap_out: HashMap<String, String> = HashMap::new();
 
+        // ================= REFAC
         let resp = self.api_get(&uri).send().await;
 
         if let Ok(got_resp) = resp {
@@ -180,6 +198,7 @@ impl GitlabJOB {
     async fn get_proj_info(&self, projid: u64) -> HashMap<String, String> {
         let uri = format!("/api/v4/projects/{projid}");
 
+        // ================= REFAC
         let resp = self.api_get(&uri).send().await;
 
         let parse_json = match resp {
@@ -205,6 +224,7 @@ impl GitlabJOB {
     pub async fn get_jobinfo(&self, projid: u64, jobid: u64) -> Option<JobInfo> {
         let uri = format!("/api/v4/projects/{projid}/jobs/{jobid}");
 
+        // ================= REFAC
         let (resp, project_infos) = join!(self.api_get(&uri).send(), self.get_proj_info(projid));
 
         let parse_json = match resp {
