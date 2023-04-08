@@ -2,13 +2,11 @@
 use crate::gitlabapi::jobinfo::{JobInfo, JobScope};
 use crate::load_config::Config;
 
-// use env_logger::fmt;
 use futures::join;
-use log::{debug, error, info, warn};
+use log::{debug, error, warn};
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde_json::Value;
 use std::collections::HashMap;
-// use std::fmt::{format, Display};
 
 mod jobinfo;
 mod mod_tests;
@@ -19,7 +17,7 @@ pub struct GitlabJOB {
 
 impl GitlabJOB {
     pub fn new(config: Config) -> Self {
-        GitlabJOB { config: config }
+        GitlabJOB { config }
     }
 
     fn api_builder(&self) -> reqwest::ClientBuilder {
@@ -70,7 +68,6 @@ impl GitlabJOB {
 
         let resp = self.api_get(&uri).send().await;
 
-        // ================ REFAC
         let parse_json = match resp {
             Ok(response) => match response.text().await {
                 Ok(text) => match serde_json::from_str::<Value>(&text) {
@@ -126,17 +123,15 @@ impl GitlabJOB {
         let mut map_jobs: HashMap<u64, Vec<u64>> = HashMap::new();
         map_jobs.insert(project, vec![]);
 
-        // ============= REFAC
-
         let parse_json = match resp {
-            Ok(got_resp) => match got_resp.text().await {
-                Ok(text) => Self::parse_json(text),
-                Err(_) => None,
-            },
-            Err(e) => {
-                error!("Error getting response from {}: {}", &uri, e);
-                None
+            Ok(got_resp) => {
+                if let Ok(text) = got_resp.text().await {
+                    Self::parse_json(text)
+                } else {
+                    None
+                }
             }
+            Err(_) => None,
         };
 
         if let Some(json) = parse_json {
@@ -183,7 +178,6 @@ impl GitlabJOB {
     }
 
     async fn get_proj_info(&self, projid: u64) -> HashMap<String, String> {
-
         let uri = format!("/api/v4/projects/{projid}");
 
         let resp = self.api_get(&uri).send().await;
@@ -232,7 +226,6 @@ impl GitlabJOB {
                 .as_str()
                 .map(|v| JobScope::from(v.to_owned()));
             jobinfo.url = json["web_url"].as_str().map(|v| v.to_owned());
-            // jobinfo.proj_name = json["name"].as_str().map(|v| v.to_owned());
             if let Some(proj_name) = project_infos.get("name") {
                 jobinfo.proj_name = Some(proj_name.to_owned());
             };
