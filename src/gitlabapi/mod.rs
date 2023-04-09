@@ -91,22 +91,7 @@ impl GitlabJOB {
             self.config.group_id.unwrap()
         );
 
-        // ================= REFAC
-        let resp = self.api_get(&uri).send().await;
-
-        let parse_json = match resp {
-            Ok(response) => match response.text().await {
-                Ok(text) => match serde_json::from_str::<Value>(&text) {
-                    Ok(json) => Some(json),
-                    Err(_) => None,
-                },
-                Err(_) => None,
-            },
-            Err(e) => {
-                error!("Error while getting {}: {}", &uri, e);
-                None
-            }
-        };
+        let parse_json = self.get_json(&uri).await;
 
         let mut vec_projs: Vec<u64> = vec![];
 
@@ -134,29 +119,21 @@ impl GitlabJOB {
             project, scope
         );
 
-        // ================= REFAC
-        let resp = self.api_get(&uri).send().await;
+        let parse_json = self.get_json(&uri).await;
 
         let mut map_jobs: HashMap<u64, Vec<u64>> = HashMap::new();
         map_jobs.insert(project, vec![]);
-
-        let parse_json = match resp {
-            Ok(got_resp) => {
-                if let Ok(text) = got_resp.text().await {
-                    Self::parse_json(text)
-                } else {
-                    None
-                }
-            }
-            Err(_) => None,
-        };
 
         if let Some(json) = parse_json {
             match json.as_array() {
                 Some(vec_json) => {
                     vec_json.iter().for_each(|proj| {
                         let val = proj["id"].as_u64().unwrap();
-                        map_jobs.get_mut(&project).unwrap().push(val);
+                        if let Some(proj) = map_jobs.get_mut(&project) {
+                            proj.push(val);
+                        } else {
+                            error!("Unable to fill job {val} for project {project}");
+                        }
                     });
                 }
                 None => {
@@ -174,23 +151,35 @@ impl GitlabJOB {
         let mut hashmap_out: HashMap<String, String> = HashMap::new();
 
         // ================= REFAC
-        let resp = self.api_get(&uri).send().await;
+        // let resp = self.api_get(&uri).send().await;
 
-        if let Ok(got_resp) = resp {
-            if let Ok(text) = got_resp.text().await {
-                if let Some(vars_obj) = Self::parse_json(text) {
-                    if let Some(vec_vars) = vars_obj.as_array() {
-                        vec_vars.iter().for_each(|var| {
-                            if let Some(key) = var["key"].as_str() {
-                                if let Some(value) = var["value"].as_str() {
-                                    hashmap_out.insert(key.to_owned(), value.to_owned());
-                                }
-                            }
-                        });
+        // if let Ok(got_resp) = resp {
+        //     if let Ok(text) = got_resp.text().await {
+        //         if let Some(vars_obj) = Self::parse_json(text) {
+        //             if let Some(vec_vars) = vars_obj.as_array() {
+        //                 vec_vars.iter().for_each(|var| {
+        //                     if let Some(key) = var["key"].as_str() {
+        //                         if let Some(value) = var["value"].as_str() {
+        //                             hashmap_out.insert(key.to_owned(), value.to_owned());
+        //                         }
+        //                     }
+        //                 });
+        //             }
+        //         }
+        //     }
+        // }
+        // ==================
+        if let Some(vars_obj) = self.get_json(&uri).await {
+            if let Some(vec_vars) = vars_obj.as_array() {
+                vec_vars.iter().for_each(|var| {
+                    if let Some(key) = var["key"].as_str() {
+                        if let Some(value) = var["value"].as_str() {
+                            hashmap_out.insert(key.to_owned(), value.to_owned());
+                        }
                     }
-                }
+                });
             }
-        }
+        };
 
         hashmap_out
     }
@@ -199,18 +188,19 @@ impl GitlabJOB {
         let uri = format!("/api/v4/projects/{projid}");
 
         // ================= REFAC
-        let resp = self.api_get(&uri).send().await;
+        // let resp = self.api_get(&uri).send().await;
 
-        let parse_json = match resp {
-            Ok(got_resp) => match got_resp.text().await {
-                Ok(text) => Self::parse_json(text),
-                Err(_) => None,
-            },
-            Err(e) => {
-                error!("Error getting response from {}: {}", &uri, e);
-                None
-            }
-        };
+        // let parse_json = match resp {
+        //     Ok(got_resp) => match got_resp.text().await {
+        //         Ok(text) => Self::parse_json(text),
+        //         Err(_) => None,
+        //     },
+        //     Err(e) => {
+        //         error!("Error getting response from {}: {}", &uri, e);
+        //         None
+        //     }
+        // };
+        let parse_json = self.get_json(&uri).await;
 
         let mut hash_map: HashMap<String, String> = HashMap::new();
         if let Some(json) = parse_json {
@@ -225,18 +215,19 @@ impl GitlabJOB {
         let uri = format!("/api/v4/projects/{projid}/jobs/{jobid}");
 
         // ================= REFAC
-        let (resp, project_infos) = join!(self.api_get(&uri).send(), self.get_proj_info(projid));
+        // let (resp, project_infos) = join!(self.api_get(&uri).send(), self.get_proj_info(projid));
 
-        let parse_json = match resp {
-            Ok(got_resp) => match got_resp.text().await {
-                Ok(text) => Self::parse_json(text),
-                Err(_) => None,
-            },
-            Err(e) => {
-                error!("Error getting response from {}: {}", &uri, e);
-                None
-            }
-        };
+        // let parse_json = match resp {
+        //     Ok(got_resp) => match got_resp.text().await {
+        //         Ok(text) => Self::parse_json(text),
+        //         Err(_) => None,
+        //     },
+        //     Err(e) => {
+        //         error!("Error getting response from {}: {}", &uri, e);
+        //         None
+        //     }
+        // };
+        let (parse_json, project_infos) = join!(self.get_json(&uri), self.get_proj_info(projid));
 
         if let Some(json) = parse_json {
             let mut jobinfo = JobInfo::default();

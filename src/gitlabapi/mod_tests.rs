@@ -102,10 +102,11 @@ mod test_http {
 
         let jobinfo = api.get_jobinfo(job_test.0.to_owned(), job_test.1[0]).await;
 
-        debug!("{:?}", jobinfo);
+        debug!("Job informations: {:?}", jobinfo);
     }
 
     #[tokio::test]
+    #[ignore = "specific job"]
     async fn test_get_specif_job() {
         init();
 
@@ -113,12 +114,16 @@ mod test_http {
 
         let api = GitlabJOB::new(config.clone());
 
-        let jobinfo = api.get_jobinfo(513_u64, 20597_u64).await;
+        let specify_project = 513_u64;
+        let specify_job = 20597_u64;
+
+        let jobinfo = api.get_jobinfo(specify_project, specify_job).await;
 
         debug!("{:?}", jobinfo);
     }
 
     #[tokio::test]
+    #[ignore = "specific pipeline"]
     async fn test_get_pipe_vars() {
         init();
 
@@ -126,7 +131,10 @@ mod test_http {
 
         let api = GitlabJOB::new(config.clone());
 
-        let pipe_vars = api.get_pipe_vars(513_u64, 15253_u64).await;
+        let specify_project = 513_u64;
+        let specify_pipeline = 15253_u64;
+
+        let pipe_vars = api.get_pipe_vars(specify_project, specify_pipeline).await;
 
         debug!("HashMap from pipeline variables: {:?}", pipe_vars);
     }
