@@ -22,7 +22,6 @@ impl GitlabJOB {
 
     fn parse_json(text: String) -> Option<Value> {
         if let Ok(parsed_json) = serde_json::from_str::<Value>(&text) {
-            debug!("Got JSON: {:?}", text);
             Some(parsed_json)
         } else {
             error!("Error while parsing to json from: \n{}", text);
@@ -71,7 +70,10 @@ impl GitlabJOB {
 
         match resp {
             Ok(response) => match response.text().await {
-                Ok(text) => Self::parse_json(text),
+                Ok(text) => {
+                    debug!("Path \"{url}\" gave json: {text}");
+                    Self::parse_json(text)
+                }
                 Err(_) => None,
             },
             Err(e) => {
@@ -228,10 +230,9 @@ impl GitlabJOB {
         //     }
         // };
         let (parse_json, project_infos) = join!(self.get_json(&uri), self.get_proj_info(projid));
+        let mut jobinfo = JobInfo::default();
 
         if let Some(json) = parse_json {
-            let mut jobinfo = JobInfo::default();
-
             jobinfo.id = json["id"].as_u64();
             jobinfo.status = json["status"]
                 .as_str()
@@ -242,11 +243,14 @@ impl GitlabJOB {
             };
 
             if let Some(pipe_info) = json["pipeline"].as_object() {
-                let mut variables = HashMap::new();
+                let variables;
                 if let Some(pipe_id) = pipe_info["id"].as_u64() {
                     jobinfo.pipeline_id = Some(pipe_id);
-                    variables.extend(self.get_pipe_vars(projid, pipe_id).await);
+                    variables = self.get_pipe_vars(projid, pipe_id).await;
+                } else {
+                    variables = HashMap::new();
                 }
+
                 jobinfo.user_mail = match variables.get("trigger_email") {
                     Some(mail) => Some(mail.to_owned()),
                     None => match json["commit"].as_object() {
