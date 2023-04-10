@@ -229,6 +229,13 @@ impl GitlabJOB {
                         None => None,
                     }
                 };
+
+                jobinfo.branch = match variables.get("ref_source") {
+                    Some(from_trigger) => Some(from_trigger.to_owned()),
+                    None => json["ref"].as_str().map(|ref_branch| ref_branch.to_owned()),
+                };
+
+                jobinfo.source_id = variables.get("source_id").map(|v| v.to_owned());
             };
 
             return Some(jobinfo);
