@@ -65,17 +65,33 @@ impl GitlabJOB {
         }
     }
 
-    async fn get_json(&self, url: &String) -> Option<Value> {
+    /// Get a tuple with an option for serde_json "Value" and number of pages as u64
+    async fn get_json(&self, url: &String) -> Option<(Value, u64)> {
         let resp = self.api_get(url).send().await;
 
         match resp {
-            Ok(response) => match response.text().await {
-                Ok(text) => {
-                    debug!("Path \"{url}\" gave json:\n{text}");
-                    Self::parse_json(text)
+            Ok(response) => {
+                let headers = response.headers().clone();
+                match response.text().await {
+                    Ok(text) => {
+                        let num_pages: u64 = match headers.get("x-total-pages") {
+                            Some(total_pages) => {
+                                if let Ok(num_str) = total_pages.to_str() {
+                                    num_str.parse().unwrap_or(0)
+                                } else {
+                                    1
+                                }
+                            }
+                            None => 1,
+                        };
+
+                        // debug!("Path \"{url}\" gave json:\n{text}");
+
+                        Self::parse_json(text).map(|val| (val, num_pages))
+                    }
+                    Err(_) => None,
                 }
-                Err(_) => None,
-            },
+            }
             Err(e) => {
                 error!("Error while calling {url}: {e}");
                 None
@@ -88,27 +104,36 @@ impl GitlabJOB {
             return vec![];
         };
 
-        let uri = format!(
+        let base_uri = format!(
             "/api/v4/groups/{}/projects?pagination=keyset&per_page=100&order_by=id&sort=asc",
             self.config.group_id.unwrap()
         );
 
-        let parse_json = self.get_json(&uri).await;
-
         let mut vec_projs: Vec<u64> = vec![];
 
-        if let Some(json) = parse_json {
-            match json.as_array() {
-                Some(vec_json) => {
+        let mut current_page = 1;
+
+        loop {
+            let new_uri = format!("{}&page={}", &base_uri, current_page);
+            let num_pages;
+
+            if let Some((json, total_pages)) = self.get_json(&new_uri).await {
+                num_pages = total_pages;
+                if let Some(vec_json) = json.as_array() {
                     vec_json.iter().for_each(|proj| {
-                        let val = proj["id"].as_u64().unwrap();
-                        vec_projs.push(val);
+                        if let Some(val) = proj["id"].as_u64() {
+                            vec_projs.push(val);
+                        }
                     });
                 }
-                None => {
-                    debug!("No jobs found for {}", uri);
-                    return vec![];
-                }
+            } else {
+                num_pages = 1;
+            }
+
+            if current_page < num_pages {
+                current_page += 1;
+            } else {
+                break;
             }
         }
 
@@ -116,6 +141,7 @@ impl GitlabJOB {
     }
 
     pub async fn get_proj_jobs(&self, project: u64, scope: JobScope) -> HashMap<u64, Vec<u64>> {
+        todo!();
         let uri = format!(
             "/api/v4/projects/{}/jobs?per_page=100&order_by=id&sort=asc&scope={}",
             project, scope
@@ -125,24 +151,23 @@ impl GitlabJOB {
 
         let mut map_jobs: HashMap<u64, Vec<u64>> = HashMap::new();
         map_jobs.insert(project, vec![]);
-
-        if let Some(json) = parse_json {
-            match json.as_array() {
-                Some(vec_json) => {
-                    vec_json.iter().for_each(|proj| {
-                        let val = proj["id"].as_u64().unwrap();
-                        if let Some(proj) = map_jobs.get_mut(&project) {
-                            proj.push(val);
-                        } else {
-                            error!("Unable to fill job {val} for project {project}");
-                        }
-                    });
-                }
-                None => {
-                    warn!("No jobs found in {}", uri);
-                }
-            }
-        };
+        // if let Some(json) = parse_json {
+        //     match json.as_array() {
+        //         Some(vec_json) => {
+        //             vec_json.iter().for_each(|proj| {
+        //                 let val = proj["id"].as_u64().unwrap();
+        //                 if let Some(proj) = map_jobs.get_mut(&project) {
+        //                     proj.push(val);
+        //                 } else {
+        //                     error!("Unable to fill job {val} for project {project}");
+        //                 }
+        //             });
+        //         }
+        //         None => {
+        //             warn!("No jobs found in {}", uri);
+        //         }
+        //     }
+        // };
 
         map_jobs
     }
@@ -153,7 +178,7 @@ impl GitlabJOB {
         let mut hashmap_out: HashMap<String, String> = HashMap::new();
 
         if let Some(vars_obj) = self.get_json(&uri).await {
-            if let Some(vec_vars) = vars_obj.as_array() {
+            if let Some(vec_vars) = vars_obj.0.as_array() {
                 vec_vars.iter().for_each(|var| {
                     if let Some(key) = var["key"].as_str() {
                         if let Some(value) = var["value"].as_str() {
@@ -168,75 +193,76 @@ impl GitlabJOB {
     }
 
     async fn get_proj_info(&self, projid: u64) -> HashMap<String, String> {
+        todo!();
         let uri = format!("/api/v4/projects/{projid}");
 
         let parse_json = self.get_json(&uri).await;
-
         let mut hash_map: HashMap<String, String> = HashMap::new();
-        if let Some(json) = parse_json {
-            if let Some(name) = json["name"].as_str() {
-                hash_map.insert("name".to_owned(), name.to_owned());
-            }
-        }
+        // if let Some(json) = parse_json {
+        //     if let Some(name) = json["name"].as_str() {
+        //         hash_map.insert("name".to_owned(), name.to_owned());
+        //     }
+        // }
         hash_map
     }
 
     pub async fn get_jobinfo(&self, projid: u64, jobid: u64) -> Option<JobInfo> {
+        todo!();
         let uri = format!("/api/v4/projects/{projid}/jobs/{jobid}");
 
         let (parse_json, project_infos) = join!(self.get_json(&uri), self.get_proj_info(projid));
         let mut jobinfo = JobInfo::default();
 
         if let Some(json) = parse_json {
-            jobinfo.id = json["id"].as_u64();
-            jobinfo.status = json["status"]
-                .as_str()
-                .map(|v| JobScope::from(v.to_owned()));
-            jobinfo.url = json["web_url"].as_str().map(|v| v.to_owned());
-            if let Some(proj_name) = project_infos.get("name") {
-                jobinfo.proj_name = Some(proj_name.to_owned());
-            };
+            //     jobinfo.id = json["id"].as_u64();
+            //     jobinfo.status = json["status"]
+            //         .as_str()
+            //         .map(|v| JobScope::from(v.to_owned()));
+            //     jobinfo.url = json["web_url"].as_str().map(|v| v.to_owned());
+            //     if let Some(proj_name) = project_infos.get("name") {
+            //         jobinfo.proj_name = Some(proj_name.to_owned());
+            //     };
 
-            if let Some(pipe_info) = json["pipeline"].as_object() {
-                let variables;
-                if let Some(pipe_id) = pipe_info["id"].as_u64() {
-                    jobinfo.pipeline_id = Some(pipe_id);
-                    variables = self.get_pipe_vars(projid, pipe_id).await;
-                } else {
-                    variables = HashMap::new();
-                }
+            //     if let Some(pipe_info) = json["pipeline"].as_object() {
+            //         let variables;
+            //         if let Some(pipe_id) = pipe_info["id"].as_u64() {
+            //             jobinfo.pipeline_id = Some(pipe_id);
+            //             variables = self.get_pipe_vars(projid, pipe_id).await;
+            //         } else {
+            //             variables = HashMap::new();
+            //         }
 
-                jobinfo.user_mail = match variables.get("trigger_email") {
-                    Some(mail) => Some(mail.to_owned()),
-                    None => match json["commit"].as_object() {
-                        Some(commit_obj) => commit_obj["committer_email"]
-                            .as_str()
-                            .map(|email| email.to_owned()),
-                        None => None,
-                    },
-                };
+            //         jobinfo.user_mail = match variables.get("trigger_email") {
+            //             Some(mail) => Some(mail.to_owned()),
+            //             None => match json["commit"].as_object() {
+            //                 Some(commit_obj) => commit_obj["committer_email"]
+            //                     .as_str()
+            //                     .map(|email| email.to_owned()),
+            //                 None => None,
+            //             },
+            //         };
 
-                if let Some(prod_tag_key) = &self.config.production_tag_key {
-                    jobinfo.git_tag = variables.get(prod_tag_key).cloned();
-                } else {
-                    jobinfo.git_tag = match json["commit"].as_object() {
-                        Some(commit_obj) => {
-                            commit_obj.get("ref_name").map(|tag| match tag.as_str() {
-                                Some(tag) => tag.to_owned(),
-                                None => "".to_owned(),
-                            })
-                        }
-                        None => None,
-                    }
-                };
+            //         if let Some(prod_tag_key) = &self.config.production_tag_key {
+            //             jobinfo.git_tag = variables.get(prod_tag_key).cloned();
+            //         } else {
+            //             jobinfo.git_tag = match json["commit"].as_object() {
+            //                 Some(commit_obj) => {
+            //                     commit_obj.get("ref_name").map(|tag| match tag.as_str() {
+            //                         Some(tag) => tag.to_owned(),
+            //                         None => "".to_owned(),
+            //                     })
+            //                 }
+            //                 None => None,
+            //             }
+            //         };
 
-                jobinfo.branch = match variables.get("ref_source") {
-                    Some(from_trigger) => Some(from_trigger.to_owned()),
-                    None => json["ref"].as_str().map(|ref_branch| ref_branch.to_owned()),
-                };
+            //         jobinfo.branch = match variables.get("ref_source") {
+            //             Some(from_trigger) => Some(from_trigger.to_owned()),
+            //             None => json["ref"].as_str().map(|ref_branch| ref_branch.to_owned()),
+            //         };
 
-                jobinfo.source_id = variables.get("source_id").map(|v| v.to_owned());
-            };
+            //         jobinfo.source_id = variables.get("source_id").map(|v| v.to_owned());
+            //     };
 
             return Some(jobinfo);
         };
