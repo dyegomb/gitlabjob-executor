@@ -37,7 +37,7 @@ pub fn load_config() -> Result<Config, &'static str> {
 
     // SMTP settings from environment variables
     if std::env::vars().any(|(k, _)| k.starts_with("SMTP_")) {
-        let mut smtp_config = Smtp::new();
+        let mut smtp_config = Smtp::default();
 
         std::env::vars()
             .filter(|(k, _)| k.starts_with("SMTP_"))
