@@ -138,7 +138,7 @@ mod test_http {
 
         let jobinfo = api.get_jobinfo(specify_project, specify_job).await;
 
-        debug!("{:?}", jobinfo);
+        debug!("Got JobInfo: {:?}", jobinfo);
     }
 
     #[tokio::test]
