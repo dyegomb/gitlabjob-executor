@@ -157,4 +157,22 @@ mod test_http {
 
         debug!("HashMap from pipeline variables: {:?}", pipe_vars);
     }
+
+    #[tokio::test]
+    async fn test_get_all_jobs() {
+        init();
+
+        let config = load_config().unwrap();
+
+        let api = GitlabJOB::new(config.clone());
+
+        let output = api.get_all_jobs(JobScope::Manual).await;
+
+        // debug!("OUTPUT: {:?}", output);
+        output.iter()
+            .for_each(|job| {
+                debug!("Got JobInfo: {:?}", job)
+            })
+    }
+
 }

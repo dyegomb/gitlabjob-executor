@@ -1,14 +1,17 @@
 use crate::gitlabapi::jobinfo::{JobInfo, JobScope};
 use crate::load_config::Config;
+use crate::gitlabapi::utils::ApiUtils;
 
 use futures::join;
 use log::{debug, error, warn};
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde_json::Value;
 use std::collections::HashMap;
+use tokio_stream::StreamExt;
 
 mod jobinfo;
 mod mod_tests;
+mod utils;
 
 pub struct GitlabJOB {
     config: Config,
@@ -17,51 +20,6 @@ pub struct GitlabJOB {
 impl GitlabJOB {
     pub fn new(config: Config) -> Self {
         GitlabJOB { config }
-    }
-
-    fn parse_json(text: String) -> Option<Value> {
-        if let Ok(parsed_json) = serde_json::from_str::<Value>(&text) {
-            Some(parsed_json)
-        } else {
-            error!("Error while parsing to json from: \n{}", text);
-            None
-        }
-    }
-
-    fn api_builder(&self) -> reqwest::ClientBuilder {
-        let mut headers = HeaderMap::new();
-        headers.insert(
-            "PRIVATE-TOKEN",
-            HeaderValue::from_str(self.config.private_token.as_ref().unwrap()).unwrap(),
-        );
-        headers.insert("Accept", HeaderValue::from_str("application/json").unwrap());
-
-        reqwest::ClientBuilder::new().default_headers(headers)
-    }
-
-    fn gen_url(&self, path: &str) -> reqwest::Url {
-        let new_uri = self.config.base_url.clone().unwrap() + path;
-
-        match reqwest::Url::parse(&new_uri) {
-            Ok(url) => url,
-            Err(error) => {
-                error!("Error while parsing url: {}", new_uri);
-                panic!("Error while parsing url \"{}\": {}", new_uri, error)
-            }
-        }
-    }
-
-    fn api_get(&self, url: &String) -> reqwest::RequestBuilder {
-        let uri = self.gen_url(url);
-
-        debug!("Building request for {uri}");
-
-        match self.api_builder().build() {
-            Ok(getter) => getter.get(uri),
-            Err(err) => {
-                panic!("Coudn't construct the api caller: {}", err);
-            }
-        }
     }
 
     /// Get a tuple with an option for serde_json "Value" and number of pages as u64
@@ -114,7 +72,6 @@ impl GitlabJOB {
 
         loop {
             let new_uri = format!("{}&page={}", &base_uri, current_page);
-            
 
             if let Some((json, total_pages)) = self.get_json(&new_uri).await {
                 num_pages = total_pages;
@@ -244,14 +201,19 @@ impl GitlabJOB {
         let uri = format!("/api/v4/projects/{projid}/jobs/{jobid}");
 
         let (parse_json, project_infos) = join!(self.get_json(&uri), self.get_proj_info(projid));
+
         let mut jobinfo = JobInfo::default();
+        jobinfo.proj_id = Some(projid);
+        jobinfo.id = Some(jobid);
 
         if let Some((json, _)) = parse_json {
-            jobinfo.id = json["id"].as_u64();
+
             jobinfo.status = json["status"]
                 .as_str()
                 .map(|v| JobScope::from(v.to_owned()));
+
             jobinfo.url = json["web_url"].as_str().map(|v| v.to_owned());
+
             if let Some(proj_name) = project_infos.get("name") {
                 jobinfo.proj_name = Some(proj_name.to_owned());
             };
@@ -301,5 +263,51 @@ impl GitlabJOB {
         };
 
         None
+    }
+
+    pub async fn get_all_jobs(&self, scope: JobScope) -> Vec<JobInfo> {
+        let mut projs_scan_list: Vec<u64> = vec![];
+
+        if let Some(lone_proj) = self.config.project_id {
+            projs_scan_list.push(lone_proj)
+        }
+
+        if self.config.group_id.is_some() {
+            self.get_group_projs()
+                .await
+                .iter()
+                .for_each(|proj| projs_scan_list.push(*proj))
+        }
+
+        let mut proj_stream = tokio_stream::iter(&projs_scan_list);
+        let mut jobs_list: Vec<(u64, u64)> = vec![];
+
+        // Scan scoped jobs
+        while let Some(proj) = proj_stream.next().await {
+            debug!("Searching jobs for project {}", proj);
+            self.get_proj_jobs(*proj, scope).await
+                .iter()
+                .for_each(|(proj_id, jobs)| {
+                    jobs.iter()
+                        .for_each(|job_id| {
+                            jobs_list.push((*proj_id, *job_id))
+                        });
+                });
+        }
+
+        // Get jobs info
+        let mut vec_out: Vec<JobInfo> = vec![];
+
+        let mut jobs_stream = tokio_stream::iter(&jobs_list);
+
+        while let Some((projid, jobid)) = jobs_stream.next().await {
+            if let Some(job_info) = self.get_jobinfo(*projid, *jobid).await {
+                vec_out.push(job_info);
+            }
+        };
+
+
+
+        vec_out
     }
 }
