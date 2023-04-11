@@ -2,7 +2,7 @@ use log::{debug, info, warn, error};
 use crate::load_config::load_config;
 
 mod load_config;
-mod mail_sender;
+mod mailsender;
 mod gitlabapi;
 
 // static PRODUCTION_KEY_TAG: &str = "PROD_TAG";

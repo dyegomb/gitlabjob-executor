@@ -2,7 +2,7 @@ use log::{debug, error};
 use merge::Merge;
 use serde::Deserialize;
 
-use crate::mail_sender::Smtp;
+use crate::mailsender::Smtp;
 
 extern crate envy;
 extern crate merge;
