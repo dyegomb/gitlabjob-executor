@@ -2,7 +2,7 @@ use std::fmt::Display;
 use std::convert::From;
 
 /// Jobs scopes: https://docs.gitlab.com/ee/api/jobs.html#list-project-jobs
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum JobScope {
     Created,
     Pending,
@@ -54,6 +54,7 @@ pub struct JobInfo {
     pub status: Option<JobScope>,
     pub url: Option<String>,
     pub proj_name: Option<String>,
+    pub proj_id: Option<u64>,
     pub pipeline_id: Option<u64>,
     pub source_id: Option<String>,
     pub user_mail: Option<String>,
@@ -74,6 +75,7 @@ impl JobInfo {
             branch: None,
             git_tag: None,
             status: None,
+            proj_id: None,
         }
     }
 }
