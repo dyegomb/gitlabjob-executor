@@ -5,7 +5,7 @@ use crate::gitlabapi::utils::ApiUtils;
 use futures::join;
 use log::{debug, error, warn};
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use tokio_stream::StreamExt;
 
 mod jobinfo;
@@ -255,7 +255,7 @@ impl GitlabJOB {
         None
     }
 
-    pub async fn get_all_jobs(&self, scope: JobScope) -> Vec<JobInfo> {
+    pub async fn get_all_jobs(&self, scope: JobScope) -> HashSet<JobInfo> {
         let mut projs_scan_list: Vec<u64> = vec![];
 
         if let Some(lone_proj) = self.config.project_id {
@@ -286,17 +286,15 @@ impl GitlabJOB {
         }
 
         // Get jobs info
-        let mut vec_out: Vec<JobInfo> = vec![];
+        let mut vec_out: HashSet<JobInfo> = HashSet::new();
 
         let mut jobs_stream = tokio_stream::iter(&jobs_list);
 
         while let Some((projid, jobid)) = jobs_stream.next().await {
             if let Some(job_info) = self.get_jobinfo(*projid, *jobid).await {
-                vec_out.push(job_info);
+                vec_out.insert(job_info);
             }
         };
-
-
 
         vec_out
     }

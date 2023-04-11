@@ -20,7 +20,7 @@ mod test_http {
         let api = GitlabJOB::new(config);
 
         let response = api
-            .api_get(&"/api/v4/projects".to_string())
+            .api_get("/api/v4/projects")
             .send()
             .await
             .unwrap()
@@ -171,7 +171,7 @@ mod test_http {
         // debug!("OUTPUT: {:?}", output);
         output.iter()
             .for_each(|job| {
-                debug!("Got JobInfo: {:?}", job)
+                debug!("Got Job: {:?}", job)
             })
     }
 
