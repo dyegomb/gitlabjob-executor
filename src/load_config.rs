@@ -71,7 +71,7 @@ pub fn load_config() -> Result<Config, &'static str> {
         };
     };
 
-    debug!("{:?}", config);
+    // debug!("{:?}", config);
     Ok(config)
 }
 
