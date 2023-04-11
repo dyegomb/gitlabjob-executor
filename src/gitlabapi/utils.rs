@@ -1,6 +1,6 @@
+use log::error;
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde_json::Value;
-use log::{debug, error, warn};
 
 use crate::gitlabapi::GitlabJOB;
 
@@ -19,13 +19,20 @@ pub enum HttpMethod {
 pub trait ApiUtils {
     fn api_builder(&self) -> reqwest::ClientBuilder;
     fn gen_url(&self, path: &str) -> reqwest::Url;
-    fn api_get(&self, url: &String) -> reqwest::RequestBuilder;
-    fn api_methods(&self, url: &String, method: HttpMethod) -> reqwest::RequestBuilder;
-    fn parse_json(text: String) -> Option<Value>;
+    fn api_get(&self, url: &str) -> reqwest::RequestBuilder;
+    fn api_caller(&self, url: &str, method: HttpMethod) -> reqwest::RequestBuilder;
+
+    fn parse_json(text: String) -> Option<Value> {
+        if let Ok(parsed_json) = serde_json::from_str::<Value>(&text) {
+            Some(parsed_json)
+        } else {
+            error!("Error while parsing to json from: \n{}", text);
+            None
+        }
+    }
 }
 
 impl ApiUtils for GitlabJOB {
-    
     fn api_builder(&self) -> reqwest::ClientBuilder {
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -49,40 +56,28 @@ impl ApiUtils for GitlabJOB {
         }
     }
 
-    fn api_get(&self, url: &String) -> reqwest::RequestBuilder {
+    fn api_get(&self, url: &str) -> reqwest::RequestBuilder {
+        self.api_caller(url, HttpMethod::Get)
+    }
+
+    fn api_caller(&self, url: &str, method: HttpMethod) -> reqwest::RequestBuilder {
         let uri = self.gen_url(url);
 
-        debug!("Building request for {uri}");
-
         match self.api_builder().build() {
-            Ok(getter) => getter.get(uri),
-            Err(err) => {
-                panic!("Coudn't construct the api caller: {}", err);
-            }
+            Ok(http_client) => match method {
+                HttpMethod::Options => http_client.request(reqwest::Method::OPTIONS, uri),
+                HttpMethod::Get => http_client.request(reqwest::Method::GET, uri),
+                HttpMethod::Post => http_client.request(reqwest::Method::POST, uri),
+                HttpMethod::Put => http_client.request(reqwest::Method::PUT, uri),
+                HttpMethod::Delete => http_client.request(reqwest::Method::DELETE, uri),
+                HttpMethod::Head => http_client.request(reqwest::Method::HEAD, uri),
+                HttpMethod::Trace => http_client.request(reqwest::Method::TRACE, uri),
+                HttpMethod::Connect => http_client.request(reqwest::Method::CONNECT, uri),
+                HttpMethod::Patch => http_client.request(reqwest::Method::PATCH, uri),
+            },
+            Err(error) => {
+                panic!("Couldn't construct the api caller: {}", error)
+            },
         }
-    }
-
-    fn parse_json(text: String) -> Option<Value> {
-        if let Ok(parsed_json) = serde_json::from_str::<Value>(&text) {
-            Some(parsed_json)
-        } else {
-            error!("Error while parsing to json from: \n{}", text);
-            None
-        }
-    }
-
-    fn api_methods(&self, url: &String, method: HttpMethod) -> reqwest::RequestBuilder {
-        match method {
-            HttpMethod::Options => todo!(),
-            HttpMethod::Get => todo!(),
-            HttpMethod::Post => todo!(),
-            HttpMethod::Put => todo!(),
-            HttpMethod::Delete => todo!(),
-            HttpMethod::Head => todo!(),
-            HttpMethod::Trace => todo!(),
-            HttpMethod::Connect => todo!(),
-            HttpMethod::Patch => todo!(),
-        }
-
     }
 }

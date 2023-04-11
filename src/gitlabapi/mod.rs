@@ -4,7 +4,6 @@ use crate::gitlabapi::utils::ApiUtils;
 
 use futures::join;
 use log::{debug, error, warn};
-use reqwest::header::{HeaderMap, HeaderValue};
 use serde_json::Value;
 use std::collections::HashMap;
 use tokio_stream::StreamExt;
@@ -22,7 +21,7 @@ impl GitlabJOB {
         GitlabJOB { config }
     }
 
-    /// Get a tuple with an option for serde_json "Value" and number of pages as u64
+    /// Get a tuple from an option with serde_json::Value and number of pages as u64
     async fn get_json(&self, url: &String) -> Option<(Value, u64)> {
         let resp = self.api_get(url).send().await;
 
@@ -86,11 +85,8 @@ impl GitlabJOB {
                 num_pages = 1;
             }
 
-            if current_page < num_pages {
-                current_page += 1;
-            } else {
-                break;
-            }
+            if current_page >= num_pages { break; }
+            current_page += 1;
         }
 
         vec_projs
@@ -134,11 +130,8 @@ impl GitlabJOB {
                 num_pages = 1;
             };
 
-            if current_page < num_pages {
-                current_page += 1;
-            } else {
-                break;
-            }
+            if current_page >= num_pages { break; }
+            current_page += 1;
         }
 
         map_jobs
@@ -174,11 +167,8 @@ impl GitlabJOB {
                 num_pages = 1;
             };
 
-            if current_page < num_pages {
-                current_page += 1;
-            } else {
-                break;
-            }
+            if current_page >= num_pages { break; }
+            current_page += 1;
         }
 
         hashmap_out
