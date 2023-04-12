@@ -1,5 +1,7 @@
 #[cfg(test)]
 mod test_mail {
+    use log::debug;
+
     use crate::load_config;
     use crate::mailsender::*;
     // use crate::mailsender::utils::SmtpUtils;
@@ -60,6 +62,7 @@ mod test_mail {
 
     #[test]
     fn test_invalid_cert() {
+        // https://github.com/lettre/lettre/blob/master/examples/smtp_selfsigned.rs
         use lettre::{
             message::header::ContentType,
             transport::smtp::{
@@ -123,7 +126,7 @@ mod test_mail {
 
         let binding = config.smtp.unwrap().server.unwrap();
 
-        let test = Smtp::split_server_port(binding).unwrap();
+        let test = MailSender::split_server_port(binding).unwrap();
 
         assert_eq!(test, ("mail.server.com".to_owned(), 123_u32))
     }
@@ -154,18 +157,32 @@ mod test_mail {
     }
 
     #[test]
-    #[ignore = "needs password"]
-    fn test_send_message() {
+    fn test_try_new() {
         init();
+
+        std::env::set_var("SMTP_SERVER", " mail.server.com:123 ");
+
         let config = load_config().unwrap();
 
-        match config
-            .smtp
-            .unwrap()
-            .send_plain_text("Test message".to_string())
-        {
-            Ok(_) => assert!(true),
-            Err(e) => panic!("Error while sending email: {:?}", e),
+        let mailer_build = MailSender::try_new(config.smtp.as_ref().unwrap());
+
+        match mailer_build {
+            Ok(_) => debug!("New mailer has been built."),
+            Err(error) => {
+                panic!("{}", error)
+            }
         }
+    }
+
+    #[test]
+    fn test_build_relay() {
+        init();
+
+        let config = load_config().unwrap();
+
+        let mut mailer = MailSender::try_new(config.smtp.as_ref().unwrap()).unwrap();
+
+        mailer.try_build_relay();
+
     }
 }

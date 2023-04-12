@@ -1,6 +1,5 @@
-use crate::mailsender::{Smtp, DEFAULT_SMTP_PORT};
+use crate::mailsender::{MailSender, DEFAULT_SMTP_PORT};
 pub trait SmtpUtils {
-    // fn split_server_port(server_with_port: String) -> Option<(String, u32)> {}
     fn split_server_port(server_with_port: String) -> Option<(String, u32)> {
         let port: u32;
         let server: String;
@@ -25,4 +24,4 @@ pub trait SmtpUtils {
     }
 }
 
-impl SmtpUtils for Smtp {}
+impl SmtpUtils for MailSender {}
