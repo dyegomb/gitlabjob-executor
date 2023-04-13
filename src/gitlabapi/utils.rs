@@ -1,8 +1,4 @@
-use log::error;
-use reqwest::header::{HeaderMap, HeaderValue};
-use serde_json::Value;
-
-use crate::gitlabapi::GitlabJOB;
+use crate::gitlabapi::prelude::*;
 
 pub enum HttpMethod {
     Options,

@@ -1,9 +1,18 @@
 #[cfg(test)]
 mod test_http {
+    // use std::io::Write;
+
     use std::io::Write;
 
-    use crate::gitlabapi::*;
-    use crate::load_config;
+    // use serde_json::Value;
+    // use log::{debug, error, warn};
+
+    // use crate::gitlabapi::gitlabjob::*;
+    // use crate::gitlabapi::utils::*;
+    // use crate::gitlabapi::jobinfo::*;
+    // // use crate::gitlabapi::*;
+    // use crate::load_config;
+    use crate::gitlabapi::prelude::*;
 
     fn init() {
         let _ = env_logger::builder()
@@ -93,19 +102,6 @@ mod test_http {
     }
 
     #[tokio::test]
-    async fn test_get_proj_info() {
-        init();
-
-        let config = load_config().unwrap();
-
-        let api = GitlabJOB::new(config.clone());
-
-        let response = api.get_proj_info(config.project_id.unwrap()).await;
-
-        debug!("Project infos: {:?}", response);
-    }
-
-    #[tokio::test]
     async fn test_get_job_info() {
         init();
 
@@ -139,23 +135,6 @@ mod test_http {
         let jobinfo = api.get_jobinfo(specify_project, specify_job).await;
 
         debug!("Got JobInfo: {:?}", jobinfo);
-    }
-
-    #[tokio::test]
-    #[ignore = "specific pipeline"]
-    async fn test_get_pipe_vars() {
-        init();
-
-        let config = load_config().unwrap();
-
-        let api = GitlabJOB::new(config.clone());
-
-        let specify_project = 513_u64;
-        let specify_pipeline = 15253_u64;
-
-        let pipe_vars = api.get_pipe_vars(specify_project, specify_pipeline).await;
-
-        debug!("HashMap from pipeline variables: {:?}", pipe_vars);
     }
 
     #[tokio::test]
