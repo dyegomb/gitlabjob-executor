@@ -31,6 +31,7 @@ mod prelude {
 
     pub use super::utils::SmtpUtils;
     pub use super::{SmtpConfig, DEFAULT_SMTP_PORT, MailSender};
+    pub use crate::load_config::Config;
 }
 
 #[derive(Deserialize, Debug, Merge, PartialEq, Clone)]

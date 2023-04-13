@@ -2,7 +2,6 @@
 mod test_mail {
     use log::debug;
 
-    use crate::load_config::Config;
     use crate::mailsender::prelude::*;
 
     fn init() {
