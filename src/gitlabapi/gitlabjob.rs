@@ -1,13 +1,4 @@
-
-use futures::join;
-use log::{debug, error, warn};
-use serde_json::Value;
-use std::collections::{HashMap, HashSet};
-use tokio_stream::StreamExt;
-// use crate::gitlabapi::*;
-use crate::gitlabapi::utils::ApiUtils;
-use crate::gitlabapi::jobinfo::{JobInfo, JobScope};
-use crate::load_config::Config;
+use crate::gitlabapi::prelude::*;
 
 pub struct GitlabJOB {
     pub config: Config,
@@ -314,7 +305,7 @@ mod test_gitlabjob {
     async fn test_get_proj_info() {
         init();
 
-        let config = load_config().unwrap();
+        let config = Config::load_config().unwrap();
 
         let api = GitlabJOB::new(config.clone());
 
@@ -328,7 +319,7 @@ mod test_gitlabjob {
     async fn test_get_pipe_vars() {
         init();
 
-        let config = load_config().unwrap();
+        let config = Config::load_config().unwrap();
 
         let api = GitlabJOB::new(config.clone());
 

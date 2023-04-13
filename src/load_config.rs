@@ -20,61 +20,62 @@ pub struct Config {
     pub smtp: Option<SmtpConfig>,
 }
 
-/// Get configurations from environment or from file
-pub fn load_config() -> Result<Config, &'static str> {
-    let mut config;
+impl Config {
+    /// Get configurations from environment or from file
+    pub fn load_config() -> Result<Config, &'static str> {
+        let mut config;
 
-    // Load config from environment variables
-    match envy::from_env::<Config>() {
-        Ok(env_config) => {
-            config = env_config;
-        }
-        Err(err) => {
-            error!("Error while reading environment variables: {:?}", err);
-            return Err("Error while reading environment variables");
-        }
-    };
-
-    // SMTP settings from environment variables
-    if std::env::vars().any(|(k, _)| k.starts_with("SMTP_")) {
-        let mut smtp_config = SmtpConfig::default();
-
-        std::env::vars()
-            .filter(|(k, _)| k.starts_with("SMTP_"))
-            .for_each(|(k, v)| match k.as_str() {
-                "SMTP_USER" => smtp_config.user = Some(v),
-                "SMTP_SERVER" => smtp_config.server = Some(v),
-                "SMTP_PASS" => smtp_config.pass = Some(v),
-                "SMTP_FROM" => smtp_config.from = Some(v),
-                "SMTP_TO" => smtp_config.to = Some(v),
-                "SMTP_SUBJECT" => smtp_config.subject = Some(v),
-                _ => {}
-            });
-
-        if smtp_config.server.is_some() {
-            config.smtp = Some(smtp_config);
-        }
-
-    }
-
-    let env_file = std::env::var("ENV_FILE").unwrap_or(".env".to_string());
-
-    if let Ok(content) = std::fs::read_to_string(&env_file) {
-        debug!("Reading {} file.", &env_file);
-
-        match toml::from_str::<Config>(&content) {
-            Ok(toml_text) => {
-                let config_file: Config = toml_text;
-                config.merge(config_file);
+        // Load config from environment variables
+        match envy::from_env::<Config>() {
+            Ok(env_config) => {
+                config = env_config;
             }
             Err(err) => {
-                error!("Couldn't read file {}: {}", env_file, err);
-                return Err("Error trying to read environment file");
+                error!("Error while reading environment variables: {:?}", err);
+                return Err("Error while reading environment variables");
             }
         };
-    };
 
-    Ok(config)
+        // SMTP settings from environment variables
+        if std::env::vars().any(|(k, _)| k.starts_with("SMTP_")) {
+            let mut smtp_config = SmtpConfig::default();
+
+            std::env::vars()
+                .filter(|(k, _)| k.starts_with("SMTP_"))
+                .for_each(|(k, v)| match k.as_str() {
+                    "SMTP_USER" => smtp_config.user = Some(v),
+                    "SMTP_SERVER" => smtp_config.server = Some(v),
+                    "SMTP_PASS" => smtp_config.pass = Some(v),
+                    "SMTP_FROM" => smtp_config.from = Some(v),
+                    "SMTP_TO" => smtp_config.to = Some(v),
+                    "SMTP_SUBJECT" => smtp_config.subject = Some(v),
+                    _ => {}
+                });
+
+            if smtp_config.server.is_some() {
+                config.smtp = Some(smtp_config);
+            }
+        }
+
+        let env_file = std::env::var("ENV_FILE").unwrap_or(".env".to_string());
+
+        if let Ok(content) = std::fs::read_to_string(&env_file) {
+            debug!("Reading {} file.", &env_file);
+
+            match toml::from_str::<Config>(&content) {
+                Ok(toml_text) => {
+                    let config_file: Config = toml_text;
+                    config.merge(config_file);
+                }
+                Err(err) => {
+                    error!("Couldn't read file {}: {}", env_file, err);
+                    return Err("Error trying to read environment file");
+                }
+            };
+        };
+
+        Ok(config)
+    }
 }
 
 #[cfg(test)]
@@ -121,7 +122,7 @@ mod test_load_config {
 
         std::env::set_var("ENV_FILE", ".env.none");
 
-        let confs = load_config().unwrap();
+        let confs = Config::load_config().unwrap();
         let config_new = Config {
             group_id: None,
             project_id: None,
@@ -142,7 +143,7 @@ mod test_load_config {
         std::env::set_var("GROUP_ID", "13");
         std::env::set_var("base_url", "https://test.tst.ts/user");
 
-        let confs = load_config().unwrap();
+        let confs = Config::load_config().unwrap();
 
         assert_eq!("13".to_string(), confs.group_id.unwrap().to_string());
         assert_eq!(
@@ -160,7 +161,7 @@ mod test_load_config {
         std::env::set_var("GROUP_ID", "13");
         std::env::set_var("ENV_FILE", ".env.example");
 
-        let confs = load_config().unwrap();
+        let confs = Config::load_config().unwrap();
         assert_eq!("13".to_string(), confs.group_id.unwrap().to_string());
         assert_eq!("mail.com".to_string(), confs.smtp.unwrap().server.unwrap());
     }
@@ -176,7 +177,7 @@ mod test_load_config {
         std::env::set_var("SMTP_USER", "user.mail");
         std::env::set_var("SMTP_PASS", "$ecRet@#");
 
-        let confs = load_config().unwrap();
+        let confs = Config::load_config().unwrap();
         assert_eq!("13".to_string(), confs.group_id.unwrap().to_string());
         assert_eq!("$ecRet@#", &confs.smtp.clone().unwrap().pass.unwrap());
         assert_eq!("user.mail", &confs.smtp.unwrap().user.unwrap());

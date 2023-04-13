@@ -24,7 +24,7 @@ mod test_http {
     #[tokio::test]
     async fn test_api_get() {
         init();
-        let config = load_config().unwrap();
+        let config = Config::load_config().unwrap();
 
         let api = GitlabJOB::new(config);
 
@@ -54,7 +54,7 @@ mod test_http {
     async fn test_get_group_projects() {
         init();
 
-        let config = load_config().unwrap();
+        let config = Config::load_config().unwrap();
 
         let gitlabjob = GitlabJOB::new(config);
 
@@ -71,7 +71,7 @@ mod test_http {
     async fn test_get_specifc_group_projects() {
         init();
 
-        let mut config = load_config().unwrap();
+        let mut config = Config::load_config().unwrap();
         config.group_id = Some(86);
 
         let gitlabjob = GitlabJOB::new(config);
@@ -89,7 +89,7 @@ mod test_http {
     async fn test_get_prj_jobs() {
         init();
 
-        let config = load_config().unwrap();
+        let config = Config::load_config().unwrap();
 
         let api = GitlabJOB::new(config.clone());
 
@@ -105,7 +105,7 @@ mod test_http {
     async fn test_get_job_info() {
         init();
 
-        let config = load_config().unwrap();
+        let config = Config::load_config().unwrap();
 
         let api = GitlabJOB::new(config.clone());
 
@@ -125,7 +125,7 @@ mod test_http {
     async fn test_get_specif_job() {
         init();
 
-        let config = load_config().unwrap();
+        let config = Config::load_config().unwrap();
 
         let api = GitlabJOB::new(config.clone());
 
@@ -141,7 +141,7 @@ mod test_http {
     async fn test_get_all_jobs() {
         init();
 
-        let config = load_config().unwrap();
+        let config = Config::load_config().unwrap();
 
         let api = GitlabJOB::new(config.clone());
 

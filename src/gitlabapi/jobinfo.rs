@@ -1,7 +1,6 @@
 use std::fmt::Display;
 use std::convert::From;
 
-/// Jobs scopes: https://docs.gitlab.com/ee/api/jobs.html#list-project-jobs
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum JobScope {
     Created,

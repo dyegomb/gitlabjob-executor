@@ -2,7 +2,7 @@
 mod test_mail {
     use log::debug;
 
-    use crate::load_config;
+    use crate::load_config::Config;
     use crate::mailsender::*;
 
     fn init() {
@@ -21,7 +21,7 @@ mod test_mail {
 
         std::env::set_var("SMTP_SERVER", " mail.server.com:123 ");
 
-        let config = load_config().unwrap();
+        let config = Config::load_config().unwrap();
 
         let binding = config.smtp.unwrap().server.unwrap();
 
@@ -35,7 +35,7 @@ mod test_mail {
     fn test_validade_mail() {
         init();
 
-        let mut config = load_config().unwrap();
+        let mut config = Config::load_config().unwrap();
 
         let mut passw = String::new();
 
@@ -59,7 +59,7 @@ mod test_mail {
     async fn test_try_new() {
         init();
 
-        let config = load_config().unwrap();
+        let config = Config::load_config().unwrap();
 
         let mailer_build = MailSender::try_new(config.smtp.unwrap());
 
@@ -75,7 +75,7 @@ mod test_mail {
     fn test_build_mail_message() {
         init();
 
-        let config = load_config().unwrap();
+        let config = Config::load_config().unwrap();
 
         let message = r#"
 This is a <b>test message</b>. :-)
@@ -94,7 +94,7 @@ This is a <b>test message</b>. :-)
     async fn test_send_mail() {
         init();
 
-        let config = load_config().unwrap();
+        let config = Config::load_config().unwrap();
 
         let smtp_config = config.smtp.clone();
 

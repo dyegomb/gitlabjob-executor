@@ -1,5 +1,5 @@
 use log::{debug, info, warn, error};
-use crate::load_config::load_config;
+use crate::load_config::Config;
 
 mod load_config;
 mod mailsender;
@@ -22,7 +22,7 @@ async fn app() -> Result<()> {
 fn main() {
     env_logger::init();
 
-    let _config = load_config().unwrap();
+    let _config = Config::load_config().unwrap();
 
 
     debug!("Isso é um debug");
@@ -67,7 +67,7 @@ mod test {
     #[test]
     fn test_show_conf() {
         init();
-        println!("Current config is {:?}", load_config().unwrap());
+        println!("Current config is {:?}", Config::load_config().unwrap());
 
         
 
