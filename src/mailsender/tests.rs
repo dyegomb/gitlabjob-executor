@@ -126,9 +126,9 @@ mod test_mail {
 
         let binding = config.smtp.unwrap().server.unwrap();
 
-        let test = MailSender::split_server_port(binding).unwrap();
+        let test = SmtpConfig::split_server_port(binding).unwrap();
 
-        assert_eq!(test, ("mail.server.com".to_owned(), 123_u32))
+        assert_eq!(test, ("mail.server.com".to_owned(), 123_u16))
     }
 
     #[test]
@@ -156,33 +156,19 @@ mod test_mail {
         )
     }
 
-    #[test]
-    fn test_try_new() {
+    #[tokio::test]
+    async fn test_try_new() {
         init();
-
-        std::env::set_var("SMTP_SERVER", " mail.server.com:123 ");
 
         let config = load_config().unwrap();
 
-        let mailer_build = MailSender::try_new(config.smtp.as_ref().unwrap());
+        let mailer_build = MailSender::try_new(config.smtp.unwrap());
 
-        match mailer_build {
+        match mailer_build.await {
             Ok(_) => debug!("New mailer has been built."),
             Err(error) => {
                 panic!("{}", error)
             }
         }
-    }
-
-    #[test]
-    fn test_build_relay() {
-        init();
-
-        let config = load_config().unwrap();
-
-        let mut mailer = MailSender::try_new(config.smtp.as_ref().unwrap()).unwrap();
-
-        mailer.try_build_relay();
-
     }
 }

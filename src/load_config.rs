@@ -2,7 +2,7 @@ use log::{debug, error};
 use merge::Merge;
 use serde::Deserialize;
 
-use crate::mailsender::Smtp;
+use crate::mailsender::SmtpConfig;
 
 extern crate envy;
 extern crate merge;
@@ -17,7 +17,7 @@ pub struct Config {
     pub private_token: Option<String>,
     pub base_url: Option<String>,
     pub production_tag_key: Option<String>,
-    pub smtp: Option<Smtp>,
+    pub smtp: Option<SmtpConfig>,
 }
 
 /// Get configurations from environment or from file
@@ -37,7 +37,7 @@ pub fn load_config() -> Result<Config, &'static str> {
 
     // SMTP settings from environment variables
     if std::env::vars().any(|(k, _)| k.starts_with("SMTP_")) {
-        let mut smtp_config = Smtp::default();
+        let mut smtp_config = SmtpConfig::default();
 
         std::env::vars()
             .filter(|(k, _)| k.starts_with("SMTP_"))
@@ -51,7 +51,10 @@ pub fn load_config() -> Result<Config, &'static str> {
                 _ => {}
             });
 
-        config.smtp = Some(smtp_config);
+        if smtp_config.server.is_some() {
+            config.smtp = Some(smtp_config);
+        }
+
     }
 
     let env_file = std::env::var("ENV_FILE").unwrap_or(".env".to_string());
