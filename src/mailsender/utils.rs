@@ -1,6 +1,4 @@
-use lettre::message::header::ContentType;
-
-use crate::mailsender::{SmtpConfig, DEFAULT_SMTP_PORT, Message};
+use crate::mailsender::{SmtpConfig, DEFAULT_SMTP_PORT, Message, ContentType};
 
 pub trait SmtpUtils {
     fn split_server_port(server_with_port: String) -> Option<(String, u16)> {

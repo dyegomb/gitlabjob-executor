@@ -11,7 +11,7 @@ use lettre::{
     message::{header::ContentType, Mailbox},
     transport::smtp::{
         authentication::Credentials,
-        client::{Certificate, Tls, TlsParameters},
+        client::{Tls, TlsParameters},
     },
     Message, SmtpTransport, Transport,
 };
