@@ -171,4 +171,44 @@ mod test_mail {
             }
         }
     }
+
+    #[test]
+    fn test_build_mail_message() {
+        init();
+
+        let config = load_config().unwrap();
+
+        let message = r#"
+This is a <b>test message</b>. :-)
+"#;
+
+        let mail_message = config.smtp.unwrap().body_builder("Test subject".to_owned(), message.to_owned());
+
+        debug!("{:?}", mail_message);
+    }
+
+    #[tokio::test]
+    #[ignore = "It'll really send an email message"]
+    async fn test_send_mail() {
+        init();
+
+        let config = load_config().unwrap();
+
+        let smtp_config = config.smtp.clone();        
+
+        let message = r#"
+This is a <b>test message</b>. :-)
+"#;
+
+        let mail_message = config.smtp.unwrap().body_builder("Test subject".to_owned(), message.to_owned());
+
+        let mailsender = MailSender::try_new(smtp_config.unwrap()).await.unwrap();
+
+        match mailsender.relay.unwrap().send(&mail_message) {
+            Ok(_) => debug!("Mail message sent."),
+            Err(error) => panic!("{}", error),
+        }
+
+    }
+    
 }

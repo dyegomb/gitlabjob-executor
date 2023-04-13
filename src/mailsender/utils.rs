@@ -1,4 +1,6 @@
-use crate::mailsender::{MailSender, SmtpConfig, DEFAULT_SMTP_PORT, Message};
+use lettre::message::header::ContentType;
+
+use crate::mailsender::{SmtpConfig, DEFAULT_SMTP_PORT, Message};
 
 pub trait SmtpUtils {
     fn split_server_port(server_with_port: String) -> Option<(String, u16)> {
@@ -25,11 +27,26 @@ pub trait SmtpUtils {
     }
 
     // Yeah, I liked this pun
-    fn body_builder(&self, message: String) -> Message;
+    fn body_builder(&self, subject: String, message: String) -> Message;
 }
 
 impl SmtpUtils for SmtpConfig {
-    fn body_builder(&self, message: String) -> Message {
-       todo!() 
+    fn body_builder(&self, subject: String, message: String) -> Message {
+        if !self.is_valid() {
+            panic!("Smtp configuration is invalid")
+        };
+
+        let concat_subject = format!("{}{}", self.subject.clone().unwrap_or("".to_owned()), subject);
+
+        match Message::builder()
+        .from(self.from.as_ref().unwrap().parse().unwrap())
+        // .reply_to(.parse().unwrap())
+        .to(self.to.as_ref().unwrap().parse().unwrap())
+        .subject(concat_subject)
+        .header(ContentType::TEXT_HTML)
+        .body(message) {
+            Ok(message) => message,
+            Err(_) => panic!("Couldn't build a mail message"),
+        }
     }
 }

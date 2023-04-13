@@ -48,7 +48,7 @@ impl From<String> for JobScope {
     }
 }
 
-#[derive(Debug, Hash, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct JobInfo {
     pub id: Option<u64>,
     pub status: Option<JobScope>,

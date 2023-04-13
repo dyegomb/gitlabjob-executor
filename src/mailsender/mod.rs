@@ -60,6 +60,7 @@ impl SmtpConfig {
     }
 }
 
+#[derive(Clone)]
 pub struct MailSender {
     relay: Option<SmtpTransport>,
     server: String,
@@ -150,7 +151,7 @@ impl MailSender {
                 self.relay = Some(mailer.build());
                 return Ok(());
             }
-            Err(_) => debug!("Second try to build mailer didn't work."),
+            Err(err) => debug!("Second try to build mailer didn't work: {}", err),
         }
 
         // Third try: Smtp with STARTTLS with invalid certificate
