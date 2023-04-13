@@ -1,4 +1,3 @@
-// extern crate email_address;
 extern crate lettre;
 
 mod tests;
@@ -7,19 +6,32 @@ mod utils;
 use log::{debug, warn, error};
 use utils::SmtpUtils;
 
-use lettre::{
-    message::{header::ContentType, Mailbox},
-    transport::smtp::{
-        authentication::Credentials,
-        client::{Tls, TlsParameters},
-    },
-    Message, SmtpTransport, Transport,
-};
+// use lettre::{
+//     message::{header::ContentType, Mailbox},
+//     transport::smtp::{
+//         authentication::Credentials,
+//         client::{Tls, TlsParameters},
+//     },
+//     Message, SmtpTransport, Transport,
+// };
 use merge::Merge;
 use serde::Deserialize;
 use tokio::time::Duration;
 
-const DEFAULT_SMTP_PORT: u16 = 587;
+use self::prelude::*;
+
+pub const DEFAULT_SMTP_PORT: u16 = 587;
+
+mod prelude {
+    pub use lettre::{Message, SmtpTransport, Transport};
+    pub use lettre::message::header::ContentType;
+    pub use lettre::message::Mailbox;
+    pub use lettre::transport::smtp::authentication::Credentials;
+    pub use lettre::transport::smtp::client::{Tls, TlsParameters};
+
+    pub use super::utils::SmtpUtils;
+    pub use super::{SmtpConfig, DEFAULT_SMTP_PORT, MailSender};
+}
 
 #[derive(Deserialize, Debug, Merge, PartialEq, Clone)]
 pub struct SmtpConfig {
