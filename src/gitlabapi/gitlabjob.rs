@@ -296,7 +296,7 @@ impl GitlabJOB {
     }
 }
 
-// Tests for private functions
+// Tests for private methods
 #[cfg(test)]
 mod test_gitlabjob {
     use super::*;
