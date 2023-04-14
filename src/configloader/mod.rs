@@ -4,6 +4,10 @@ extern crate envy;
 extern crate merge;
 extern crate toml;
 
+pub mod prelude {
+    pub use super::Config;
+}
+
 /// Possible configurations
 #[derive(Deserialize, Debug, Merge, PartialEq, Clone)]
 #[serde(rename_all = "lowercase")]
@@ -180,3 +184,4 @@ mod test_load_config {
         assert_eq!("user.mail", &confs.smtp.unwrap().user.unwrap());
     }
 }
+

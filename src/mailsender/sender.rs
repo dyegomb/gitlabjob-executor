@@ -116,7 +116,7 @@ impl MailSender {
 
         match mailer.clone().timeout(wait_time).build().test_connection() {
             Ok(_) => {
-                warn!("SMTP WITHOUT ENCRYPTION");
+                warn!("!!! SMTP CONNECTION WITHOUT ENCRYPTION !!!");
                 self.relay = Some(mailer.build());
                 Ok(())
             },

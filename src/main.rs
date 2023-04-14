@@ -1,9 +1,10 @@
 use log::{debug, info, warn, error};
-use crate::load_config::Config;
 
-mod load_config;
+mod configloader;
 mod mailsender;
 mod gitlabapi;
+
+use configloader::prelude::*;
 
 // static PRODUCTION_KEY_TAG: &str = "PROD_TAG";
 

@@ -292,7 +292,7 @@ impl GitlabJOB {
 mod test_gitlabjob {
     use super::*;
 
-    use crate::load_config;
+    // use crate::load_config;
 
     fn init() {
         let _ = env_logger::builder()

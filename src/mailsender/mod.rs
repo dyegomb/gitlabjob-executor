@@ -15,8 +15,7 @@ pub mod prelude {
     pub use lettre::transport::smtp::authentication::Credentials;
     pub use lettre::transport::smtp::client::{Tls, TlsParameters};
 
-    pub use crate::mailsender::smtpconfig::SmtpConfig;
-    pub use crate::load_config::Config;
+    pub use super::smtpconfig::SmtpConfig;
     pub use super::sender::MailSender;
     pub use super::utils::SmtpUtils;
 }

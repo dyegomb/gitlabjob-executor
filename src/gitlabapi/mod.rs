@@ -13,5 +13,5 @@ pub mod prelude {
     pub use crate::gitlabapi::gitlabjob::GitlabJOB;
     pub use crate::gitlabapi::utils::{ApiUtils, HttpMethod};
     pub use crate::gitlabapi::jobinfo::{JobInfo, JobScope};
-    pub use crate::load_config::Config;
+    pub use crate::configloader::Config;
 }
