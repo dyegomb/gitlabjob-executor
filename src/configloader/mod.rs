@@ -63,6 +63,15 @@ impl Config {
             match toml::from_str::<Config>(&content) {
                 Ok(toml_text) => {
                     let config_file: Config = toml_text;
+
+                    // Merges smtp configurations
+                    if config_file.smtp.is_some() && config.smtp.is_some() {
+                        let mut new_smtp = config.smtp.clone().unwrap();
+                        new_smtp.merge(config_file.smtp.clone().unwrap());
+                        config.smtp = Some(new_smtp);
+                    }
+
+                    // Merges the whole config
                     config.merge(config_file);
                 }
                 Err(err) => {
@@ -197,6 +206,7 @@ mod test_load_config {
         debug!("Config loaded: {:?}", confs);
         assert_eq!("13".to_string(), confs.group_id.unwrap().to_string());
         assert_eq!("$ecRet@#", &confs.smtp.clone().unwrap().pass.unwrap());
-        assert_eq!("user.mail", &confs.smtp.unwrap().user.unwrap());
+        assert_eq!("user.mail", &confs.smtp.clone().unwrap().user.unwrap());
+        assert_eq!("mail.com", &confs.smtp.unwrap().server.unwrap());
     }
 }
