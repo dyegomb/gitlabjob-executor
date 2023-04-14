@@ -52,9 +52,7 @@ impl Config {
                     _ => {}
                 });
 
-            if smtp_config.server.is_some() {
-                config.smtp = Some(smtp_config);
-            }
+            config.smtp = Some(smtp_config);
         }
 
         let env_file = std::env::var("ENV_FILE").unwrap_or(".env".to_string());
@@ -183,5 +181,22 @@ mod test_load_config {
         assert_eq!("$ecRet@#", &confs.smtp.clone().unwrap().pass.unwrap());
         assert_eq!("user.mail", &confs.smtp.unwrap().user.unwrap());
     }
-}
 
+    #[test]
+    #[ignore = "concurrency"]
+    fn test_mix_env_file() {
+        init();
+        env_cleaner();
+
+        std::env::set_var("GROUP_ID", "13");
+        std::env::set_var("SMTP_USER", "user.mail");
+        std::env::set_var("SMTP_PASS", "$ecRet@#");
+        std::env::set_var("ENV_FILE", ".env.example");
+
+        let confs = Config::load_config().unwrap();
+        debug!("Config loaded: {:?}", confs);
+        assert_eq!("13".to_string(), confs.group_id.unwrap().to_string());
+        assert_eq!("$ecRet@#", &confs.smtp.clone().unwrap().pass.unwrap());
+        assert_eq!("user.mail", &confs.smtp.unwrap().user.unwrap());
+    }
+}
