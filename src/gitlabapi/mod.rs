@@ -3,7 +3,7 @@ mod tests;
 mod utils;
 mod gitlabjob;
 
-mod prelude {
+pub mod prelude {
     pub use serde_json::Value;
     pub use reqwest::header::{HeaderMap, HeaderValue};
     pub use log::{debug, error, warn};

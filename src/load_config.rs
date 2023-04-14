@@ -1,8 +1,4 @@
-use log::{debug, error};
-use merge::Merge;
-use serde::Deserialize;
-
-use crate::mailsender::SmtpConfig;
+use crate::mailsender::prelude::*;
 
 extern crate envy;
 extern crate merge;
@@ -173,11 +169,12 @@ mod test_load_config {
         env_cleaner();
 
         std::env::set_var("GROUP_ID", "13");
-        std::env::set_var("ENV_FILE", ".env.null");
         std::env::set_var("SMTP_USER", "user.mail");
         std::env::set_var("SMTP_PASS", "$ecRet@#");
+        std::env::set_var("ENV_FILE", ".env.null");
 
         let confs = Config::load_config().unwrap();
+        debug!("Config loaded: {:?}", confs);
         assert_eq!("13".to_string(), confs.group_id.unwrap().to_string());
         assert_eq!("$ecRet@#", &confs.smtp.clone().unwrap().pass.unwrap());
         assert_eq!("user.mail", &confs.smtp.unwrap().user.unwrap());

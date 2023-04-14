@@ -1,5 +1,3 @@
-
-
 use crate::mailsender::prelude::*;
 
 pub trait SmtpUtils {

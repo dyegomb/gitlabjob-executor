@@ -129,8 +129,8 @@ mod test_http {
 
         let api = GitlabJOB::new(config.clone());
 
-        let specify_project = 513_u64;
-        let specify_job = 20597_u64;
+        let specify_project = 518_u64;
+        let specify_job = 20548_u64;
 
         let jobinfo = api.get_jobinfo(specify_project, specify_job).await;
 
@@ -145,7 +145,7 @@ mod test_http {
 
         let api = GitlabJOB::new(config.clone());
 
-        let output = api.get_all_jobs(JobScope::Manual).await;
+        let output = api.get_all_jobs(JobScope::Canceled).await;
 
         // debug!("OUTPUT: {:?}", output);
         output.iter()
