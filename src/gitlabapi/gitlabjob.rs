@@ -286,13 +286,20 @@ impl GitlabJOB {
 
         vec_out
     }
+
+    pub async fn play_job(&self, job: JobInfo) -> Result<(), String> {
+        todo!()
+    }
+
+    pub async fn cancel_job(&self, job: JobInfo) -> Result<(), String> {
+        todo!()
+    }
 }
 
+// Tests for private functions
 #[cfg(test)]
 mod test_gitlabjob {
     use super::*;
-
-    // use crate::load_config;
 
     fn init() {
         let _ = env_logger::builder()

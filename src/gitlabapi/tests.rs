@@ -154,4 +154,10 @@ mod test_http {
             })
     }
 
+    #[tokio::test]
+    #[ignore = "only creates a manual job"]
+    async fn create_job() {
+
+    }
+
 }
