@@ -2,8 +2,8 @@
 mod test_mail {
     use log::debug;
 
-    use crate::mailsender::prelude::*;
     use crate::configloader::prelude::*;
+    use crate::mailsender::prelude::*;
 
     fn init() {
         let _ = env_logger::builder()
@@ -105,14 +105,21 @@ This is a <b>test message</b>. :-)
 
         let mail_message = config
             .smtp
+            .clone()
             .unwrap()
             .body_builder("Test subject".to_owned(), message.to_owned());
 
+        let mail_message2 = config
+            .smtp
+            .unwrap()
+            .body_builder("Test subject".to_owned(), "Another message test".to_owned());
+
         let mailsender = MailSender::try_new(smtp_config.unwrap()).await.unwrap();
 
-        match mailsender.relay.unwrap().send(&mail_message) {
-            Ok(_) => debug!("Mail message sent."),
-            Err(error) => panic!("{}", error),
-        }
+
+        if let Some(relay) =  mailsender.relay {
+                let _ = relay.send(&mail_message); 
+                let _ = relay.send(&mail_message2);
+        };
     }
 }
