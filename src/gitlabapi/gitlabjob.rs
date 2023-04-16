@@ -82,7 +82,7 @@ impl GitlabJOB {
 
     pub async fn get_proj_jobs(&self, project: u64, scope: JobScope) -> HashMap<u64, Vec<u64>> {
         let uri = format!(
-            "/api/v4/projects/{}/jobs?pagination=keyset&per_page=100&order_by=id&sort=asc&scope={}",
+            "/api/v4/projects/{}/jobs?per_page=100&order_by=id&sort=asc&scope={}",
             project, scope
         );
         let mut current_page = 1;
