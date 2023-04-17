@@ -1,5 +1,7 @@
 use crate::gitlabapi::prelude::*;
 
+const STREAM_BUFF_SIZE: usize = 8;
+
 pub struct GitlabJOB {
     pub config: Config,
 }
@@ -246,6 +248,8 @@ impl GitlabJOB {
     pub async fn get_all_jobs(&self, scope: JobScope) -> HashSet<JobInfo> {
         let mut projs_scan_list: Vec<u64> = vec![];
 
+        let mut buffer = vec![0; STREAM_BUFF_SIZE];
+
         if let Some(lone_proj) = self.config.project_id {
             projs_scan_list.push(lone_proj)
         }
@@ -257,32 +261,36 @@ impl GitlabJOB {
                 .for_each(|proj| projs_scan_list.push(*proj))
         }
 
-        let mut proj_stream = tokio_stream::iter(&projs_scan_list);
         let mut jobs_list: Vec<(u64, u64)> = vec![];
 
-        // Scan scoped jobs
-        while let Some(proj) = proj_stream.next().await {
-            debug!("Searching for jobs in project {}", proj);
-            self.get_proj_jobs(*proj, scope).await
-                .iter()
-                .for_each(|(proj_id, jobs)| {
+        let proj_stream = stream::iter(&projs_scan_list)
+            .map(|proj| self.get_proj_jobs(*proj, scope))
+            .buffer_unordered(STREAM_BUFF_SIZE)
+            .fuse();
+        tokio::pin!(proj_stream);
+
+        while let Some(proj_hash) = proj_stream.next().await {
+            proj_hash.iter()
+                .for_each(|(projid, jobs)| {
                     jobs.iter()
-                        .for_each(|job_id| {
-                            jobs_list.push((*proj_id, *job_id))
-                        });
-                });
+                        .for_each(|jobid| jobs_list.push((*projid, *jobid)))
+                })
         }
 
         // Get jobs info
         let mut vec_out: HashSet<JobInfo> = HashSet::new();
 
-        let mut jobs_stream = tokio_stream::iter(&jobs_list);
+        let jobs_stream = stream::iter(&jobs_list)
+            .map(|(projid, jobid)| {self.get_jobinfo(*projid, *jobid)})
+            .buffer_unordered(STREAM_BUFF_SIZE)
+            .fuse();
+        tokio::pin!(jobs_stream);
 
-        while let Some((projid, jobid)) = jobs_stream.next().await {
-            if let Some(job_info) = self.get_jobinfo(*projid, *jobid).await {
-                vec_out.insert(job_info);
+        while let Some(jobinfo) = jobs_stream.next().await {
+            if let Some(job) = jobinfo {
+                vec_out.insert(job);
             }
-        };
+        }
 
         vec_out
     }

@@ -9,7 +9,7 @@ pub mod prelude {
     pub use log::{debug, error, warn};
     pub use std::collections::{HashMap, HashSet};
     pub use futures::join;
-    pub use tokio_stream::StreamExt;
+    pub use futures::stream::{ self, StreamExt};
     pub use crate::gitlabapi::gitlabjob::GitlabJOB;
     pub use crate::gitlabapi::utils::{ApiUtils, HttpMethod};
     pub use crate::gitlabapi::jobinfo::{JobInfo, JobScope};

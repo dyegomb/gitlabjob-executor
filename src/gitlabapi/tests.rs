@@ -147,11 +147,12 @@ mod test_http {
 
         let output = api.get_all_jobs(JobScope::Canceled).await;
 
-        // debug!("OUTPUT: {:?}", output);
+
         output.iter()
             .for_each(|job| {
                 debug!("Got Job: {:?}", job)
-            })
+            });
+        debug!("jobs length: {:?}", output.len());
     }
 
     #[tokio::test]
