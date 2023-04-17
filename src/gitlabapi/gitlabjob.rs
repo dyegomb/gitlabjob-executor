@@ -248,8 +248,6 @@ impl GitlabJOB {
     pub async fn get_all_jobs(&self, scope: JobScope) -> HashSet<JobInfo> {
         let mut projs_scan_list: Vec<u64> = vec![];
 
-        let mut buffer = vec![0; STREAM_BUFF_SIZE];
-
         if let Some(lone_proj) = self.config.project_id {
             projs_scan_list.push(lone_proj)
         }
