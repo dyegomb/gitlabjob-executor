@@ -1,5 +1,5 @@
-use std::fmt::Display;
 use std::convert::From;
+use std::fmt::Display;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum JobScope {
@@ -12,6 +12,7 @@ pub enum JobScope {
     Skipped,
     WaitingForResource,
     Manual,
+    Invalid,
 }
 
 impl Display for JobScope {
@@ -26,13 +27,14 @@ impl Display for JobScope {
             JobScope::Skipped => write!(f, "skipped"),
             JobScope::WaitingForResource => write!(f, "waiting_for_resource"),
             JobScope::Manual => write!(f, "manual"),
+            JobScope::Invalid => write!(f, "invalid"),
         }
     }
 }
 
 impl From<String> for JobScope {
     fn from(value: String) -> Self {
-        match value.as_str() {
+        match value.to_lowercase().as_str() {
             "created" => JobScope::Created,
             "pending" => JobScope::Pending,
             "running" => JobScope::Running,
@@ -42,7 +44,7 @@ impl From<String> for JobScope {
             "skipped" => JobScope::Skipped,
             "waiting_for_resource" => JobScope::WaitingForResource,
             "manual" => JobScope::Manual,
-            _ => JobScope::Skipped
+            _ => JobScope::Invalid,
         }
     }
 }
@@ -55,26 +57,58 @@ pub struct JobInfo {
     pub proj_name: Option<String>,
     pub proj_id: Option<u64>,
     pub pipeline_id: Option<u64>,
-    pub source_id: Option<String>,
+    pub source_id: Option<u64>,
     pub user_mail: Option<String>,
     pub branch: Option<String>,
     pub git_tag: Option<String>,
 }
 
-
 impl JobInfo {
     pub fn default() -> Self {
         Self {
-            id: None,
-            url: None,
             proj_name: None,
-            pipeline_id: None,
-            source_id: None,
-            user_mail: None,
-            branch: None,
-            git_tag: None,
-            status: None,
             proj_id: None,
+            source_id: None,
+            branch: None,
+            pipeline_id: None,
+            user_mail: None,
+            git_tag: None,
+            url: None,
+            id: None,
+            status: None,
         }
+    }
+
+    pub fn to_html(&self) -> String {
+        let default_string = "unknown".to_owned();
+
+        let proj_name = self.proj_name.as_ref().unwrap_or(&default_string);
+        let proj_id = self.proj_id.unwrap_or(0);
+        let source_id = self.source_id.unwrap_or(0);
+        let branch = self.branch.as_ref().unwrap_or(&default_string);
+        let pipeline_id = self.pipeline_id.unwrap_or(0);
+        let user_mail = self.user_mail.as_ref().unwrap_or(&default_string);
+        let git_tag = self.git_tag.as_ref().unwrap_or(&default_string);
+        let url = self.url.as_ref().unwrap_or(&default_string);
+        let job_id = self.id.unwrap_or(0);
+        let status = self.status.unwrap_or(JobScope::Invalid);
+
+
+        format!(
+            r#"
+            <ul>
+                <li>Project name: <b>{proj_name}</b></li>
+                <li>Git tag: <b>{git_tag}</b></li>
+                <li>Branch: <b>{branch}</b></li>
+                <li>Source project id: <b>{source_id}</b></li>
+                <li>Deploy project id: <b>{proj_id}</b></li>
+                <li>Deploy pipeline id: <b>{pipeline_id}</b></li>
+                <li>User mail: <b>{user_mail}</b></li>
+                <li>Job URL: <b>{url}</b></li>
+                <li>Job id: <b>{job_id}</b></li>
+                <li>Job status: <b>{status}</b></li>
+            </ul>
+            "#
+        )
     }
 }
