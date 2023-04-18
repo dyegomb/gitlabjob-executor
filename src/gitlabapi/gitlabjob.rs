@@ -20,7 +20,7 @@ impl GitlabJOB {
             Err(e) => {
                 error!("Error while getting {url}: {e}");
                 None
-            },
+            }
             Ok(response) => {
                 let headers = response.headers().clone();
                 match response.text().await {
@@ -49,22 +49,19 @@ impl GitlabJOB {
         let resp = self.api_post(url.as_str(), form);
 
         match resp.send().await {
-            Err(e) => { 
+            Err(e) => {
                 error!("Error while posting to {url}: {e}");
                 None
-            },
+            }
             Ok(response) => {
                 debug!("HTTP Response Headers: {:?}", response.headers());
                 debug!("HTTP Response Status: {:?}", response.status());
                 debug!("HTTP Response Url: {:?}", response.url());
                 match response.text().await {
                     Err(_) => None,
-                    Ok(text) => {
-                        Self::parse_json(text)
-                    },
+                    Ok(text) => Self::parse_json(text),
                 }
-
-            },
+            }
         }
     }
 
@@ -99,7 +96,9 @@ impl GitlabJOB {
                 num_pages = 1;
             }
 
-            if current_page >= num_pages { break; }
+            if current_page >= num_pages {
+                break;
+            }
             current_page += 1;
         }
 
@@ -144,7 +143,9 @@ impl GitlabJOB {
                 num_pages = 1;
             };
 
-            if current_page >= num_pages { break; }
+            if current_page >= num_pages {
+                break;
+            }
             current_page += 1;
         }
 
@@ -160,10 +161,7 @@ impl GitlabJOB {
         let mut current_page = 1;
 
         loop {
-            new_uri = format!(
-                "{}?per_page=100&page={}",
-                &uri, current_page
-            );
+            new_uri = format!("{}?per_page=100&page={}", &uri, current_page);
             let num_pages;
 
             if let Some((vars_obj, pages)) = self.get_json(&new_uri).await {
@@ -181,7 +179,9 @@ impl GitlabJOB {
                 num_pages = 1;
             };
 
-            if current_page >= num_pages { break; }
+            if current_page >= num_pages {
+                break;
+            }
             current_page += 1;
         }
 
@@ -211,7 +211,6 @@ impl GitlabJOB {
         jobinfo.id = Some(jobid);
 
         if let Some((json, _)) = parse_json {
-
             jobinfo.status = json["status"]
                 .as_str()
                 .map(|v| JobScope::from(v.to_owned()));
@@ -260,7 +259,7 @@ impl GitlabJOB {
                     None => json["ref"].as_str().map(|ref_branch| ref_branch.to_owned()),
                 };
 
-                jobinfo.source_id = variables.get("source_id").map(|v| v.to_owned());
+                jobinfo.source_id = variables.get("source_id").map(|v| v.parse().unwrap_or(0));
             };
 
             return Some(jobinfo);
@@ -269,21 +268,38 @@ impl GitlabJOB {
         None
     }
 
-    pub async fn get_all_jobs(&self, scope: JobScope) -> HashSet<JobInfo> {
-        let mut projs_scan_list: Vec<u64> = vec![];
+    async fn get_inner_projs(&self) -> Vec<u64> {
+        let mut vec_out = vec![];
 
         if let Some(lone_proj) = self.config.project_id {
-            projs_scan_list.push(lone_proj)
+            vec_out.push(lone_proj)
         }
 
         if self.config.group_id.is_some() {
             self.get_group_projs()
                 .await
                 .iter()
-                .for_each(|proj| projs_scan_list.push(*proj))
+                .for_each(|proj| vec_out.push(*proj))
         }
 
-        let mut jobs_list: Vec<(u64, u64)> = vec![];
+        vec_out
+    }
+
+    async fn get_jobs_by_project(&self, scope: JobScope) -> HashMap<u64, Vec<u64>> {
+
+        let projects = self.get_inner_projs().await;
+
+        // let stream_projects = stream::iter(&projects)
+        //     .;
+
+        // let mut proj_jobs = HashMap::new();
+
+
+        todo!()
+    }
+
+    pub async fn get_all_jobs(&self, scope: JobScope) -> HashSet<JobInfo> {
+        let projs_scan_list = self.get_inner_projs().await;
 
         let proj_stream = stream::iter(&projs_scan_list)
             .map(|proj| self.get_proj_jobs(*proj, scope))
@@ -291,12 +307,13 @@ impl GitlabJOB {
             .fuse();
         tokio::pin!(proj_stream);
 
+        let mut jobs_list: Vec<(u64, u64)> = vec![];
+
         while let Some(proj_hash) = proj_stream.next().await {
-            proj_hash.iter()
-                .for_each(|(projid, jobs)| {
-                    jobs.iter()
-                        .for_each(|jobid| jobs_list.push((*projid, *jobid)))
-                })
+            proj_hash.iter().for_each(|(projid, jobs)| {
+                jobs.iter()
+                    .for_each(|jobid| jobs_list.push((*projid, *jobid)))
+            })
         }
 
         // Get jobs info
@@ -318,34 +335,56 @@ impl GitlabJOB {
     }
 
     pub async fn play_job(&self, job: JobInfo) -> Result<(), String> {
-        let url = format!("api/v4/projects/{}/jobs/{}/play", job.proj_id.unwrap(), job.id.unwrap());
+        let url = format!(
+            "api/v4/projects/{}/jobs/{}/play",
+            job.proj_id.unwrap(),
+            job.id.unwrap()
+        );
 
-        let form = HashMap::from([("","")]);
+        let form = HashMap::from([("", "")]);
 
         let resp = self.post_json(url, form);
 
         if let Some(response) = resp.await {
             debug!("Job played: {:?}", response);
-            return Ok(())
+            return Ok(());
         }
 
         Err(format!("Couldn't play job {:?}", job))
     }
 
     pub async fn cancel_job(&self, job: JobInfo) -> Result<(), String> {
-        let url = format!("api/v4/projects/{}/jobs/{}/cancel", job.proj_id.unwrap(), job.id.unwrap());
+        let url = format!(
+            "api/v4/projects/{}/jobs/{}/cancel",
+            job.proj_id.unwrap(),
+            job.id.unwrap()
+        );
 
-        let form = HashMap::from([("","")]);
+        let form = HashMap::from([("", "")]);
 
         let resp = self.post_json(url, form);
 
         if let Some(response) = resp.await {
             debug!("Job canceled: {:?}", response);
-            return Ok(())
+            return Ok(());
         }
 
         Err(format!("Couldn't cancel job {:?}", job))
+    }
 
+    pub async fn get_new_job_status(&self, job: JobInfo) -> Option<JobScope> {
+        let projid = job.proj_id.unwrap();
+        let jobid = job.id.unwrap();
+
+        let uri = format!("/api/v4/projects/{projid}/jobs/{jobid}");
+
+        if let Some((json, _)) = self.get_json(&uri).await {
+            return json["status"]
+                .as_str()
+                .map(|v| JobScope::from(v.to_owned()));
+        }
+
+        None
     }
 }
 
