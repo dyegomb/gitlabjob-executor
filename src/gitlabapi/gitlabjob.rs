@@ -4,6 +4,7 @@ const STREAM_BUFF_SIZE: usize = 8;
 
 pub struct GitlabJOB {
     pub config: Config,
+    // headers: HashMap<String, String>
 }
 
 impl GitlabJOB {
@@ -13,9 +14,13 @@ impl GitlabJOB {
 
     /// Get a tuple from an option with serde_json::Value and number of pages as u64
     async fn get_json(&self, url: &String) -> Option<(Value, u64)> {
-        let resp = self.api_get(url).send().await;
+        let resp = self.api_get(url);
 
-        match resp {
+        match resp.send().await {
+            Err(e) => {
+                error!("Error while getting {url}: {e}");
+                None
+            },
             Ok(response) => {
                 let headers = response.headers().clone();
                 match response.text().await {
@@ -37,10 +42,29 @@ impl GitlabJOB {
                     Err(_) => None,
                 }
             }
-            Err(e) => {
-                error!("Error while calling {url}: {e}");
+        }
+    }
+
+    pub async fn post_json(&self, url: String, form: HashMap<&str, &str>) -> Option<Value> {
+        let resp = self.api_post(url.as_str(), form);
+
+        match resp.send().await {
+            Err(e) => { 
+                error!("Error while posting to {url}: {e}");
                 None
-            }
+            },
+            Ok(response) => {
+                debug!("HTTP Response Headers: {:?}", response.headers());
+                debug!("HTTP Response Status: {:?}", response.status());
+                debug!("HTTP Response Url: {:?}", response.url());
+                match response.text().await {
+                    Err(_) => None,
+                    Ok(text) => {
+                        Self::parse_json(text)
+                    },
+                }
+
+            },
         }
     }
 
@@ -137,7 +161,7 @@ impl GitlabJOB {
 
         loop {
             new_uri = format!(
-                "{}?pagination=keyset&per_page=100&page={}",
+                "{}?per_page=100&page={}",
                 &uri, current_page
             );
             let num_pages;
@@ -279,7 +303,7 @@ impl GitlabJOB {
         let mut vec_out: HashSet<JobInfo> = HashSet::new();
 
         let jobs_stream = stream::iter(&jobs_list)
-            .map(|(projid, jobid)| {self.get_jobinfo(*projid, *jobid)})
+            .map(|(projid, jobid)| self.get_jobinfo(*projid, *jobid))
             .buffer_unordered(STREAM_BUFF_SIZE)
             .fuse();
         tokio::pin!(jobs_stream);
@@ -294,11 +318,34 @@ impl GitlabJOB {
     }
 
     pub async fn play_job(&self, job: JobInfo) -> Result<(), String> {
-        todo!()
+        let url = format!("api/v4/projects/{}/jobs/{}/play", job.proj_id.unwrap(), job.id.unwrap());
+
+        let form = HashMap::from([("","")]);
+
+        let resp = self.post_json(url, form);
+
+        if let Some(response) = resp.await {
+            debug!("Job played: {:?}", response);
+            return Ok(())
+        }
+
+        Err(format!("Couldn't play job {:?}", job))
     }
 
     pub async fn cancel_job(&self, job: JobInfo) -> Result<(), String> {
-        todo!()
+        let url = format!("api/v4/projects/{}/jobs/{}/cancel", job.proj_id.unwrap(), job.id.unwrap());
+
+        let form = HashMap::from([("","")]);
+
+        let resp = self.post_json(url, form);
+
+        if let Some(response) = resp.await {
+            debug!("Job canceled: {:?}", response);
+            return Ok(())
+        }
+
+        Err(format!("Couldn't cancel job {:?}", job))
+
     }
 }
 

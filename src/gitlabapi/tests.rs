@@ -1,17 +1,7 @@
 #[cfg(test)]
 mod test_http {
-    // use std::io::Write;
 
     use std::io::Write;
-
-    // use serde_json::Value;
-    // use log::{debug, error, warn};
-
-    // use crate::gitlabapi::gitlabjob::*;
-    // use crate::gitlabapi::utils::*;
-    // use crate::gitlabapi::jobinfo::*;
-    // // use crate::gitlabapi::*;
-    // use crate::load_config;
     use crate::gitlabapi::prelude::*;
 
     fn init() {
@@ -143,7 +133,7 @@ mod test_http {
 
         let config = Config::load_config().unwrap();
 
-        let api = GitlabJOB::new(config.clone());
+        let api = GitlabJOB::new(config);
 
         let output = api.get_all_jobs(JobScope::Canceled).await;
 
@@ -152,13 +142,76 @@ mod test_http {
             .for_each(|job| {
                 debug!("Got Job: {:?}", job)
             });
-        debug!("jobs length: {:?}", output.len());
+        debug!("Total jobs: {:?}", output.len());
     }
 
     #[tokio::test]
-    #[ignore = "only creates a manual job"]
+    #[ignore = "It only creates a manual job"]
     async fn create_job() {
+        init();
+
+        use std::env;
+
+        let token_trigger = env::var("TOKEN_TRIGGER").unwrap_or("123456".to_owned());
+
+        let mut form = HashMap::new();
+        form.insert("token", token_trigger.as_str());
+        form.insert("ref", "master");
+        form.insert("variables[trigger_email]", "test@test.org");
+        form.insert("variables[source_id]", "123");
+        form.insert("variables[ref_source]", "master");
+        form.insert("variables[PROD_TAG]", "PROD-0.0.1");
+
+        let config = Config::load_config().unwrap();
+
+        let api = GitlabJOB::new(config);
+
+        let output = api.post_json("api/v4/projects/306/trigger/pipeline".to_owned(), form).await;
+
+        debug!("Response: {:?}", output);
+    }
+    #[tokio::test]
+    #[ignore = "It'll cancel a specific job"]
+    async fn test_cancel_job() {
+        init();
+
+        let config = Config::load_config().unwrap();
+
+        let api = GitlabJOB::new(config.clone());
+
+        let specify_project = 306_u64;
+        let specify_job = 20753_u64;
+
+        let jobinfo = api.get_jobinfo(specify_project, specify_job).await;
+
+        if let Err(resp) = api.cancel_job(jobinfo.unwrap()).await {
+            panic!("Error {}", resp)
+        }
+
+        debug!("Job canceled: {}", specify_job);
 
     }
 
+    #[tokio::test]
+    #[ignore = "It'll run a specific job"]
+    async fn test_play_job() {
+        init();
+
+        let config = Config::load_config().unwrap();
+
+        let api = GitlabJOB::new(config.clone());
+
+        let specify_project = 306_u64;
+        let specify_job = 20752_u64;
+
+        let jobinfo = api.get_jobinfo(specify_project, specify_job).await;
+        debug!("To run job: {:?}", jobinfo);
+
+        if let Err(resp) = api.play_job(jobinfo.unwrap()).await {
+            panic!("Error {}", resp)
+        }
+
+        debug!("Job played: {}", specify_job);
+
+    }
 }
