@@ -105,13 +105,13 @@ impl GitlabJOB {
         vec_projs
     }
 
-    pub async fn get_proj_jobs(&self, project: u64, scope: JobScope) -> HashMap<u64, Vec<u64>> {
+    pub async fn get_proj_jobs(&self, project: u64, scope: JobScope) -> Vec<u64> {
         let uri = format!(
             "/api/v4/projects/{}/jobs?per_page=100&order_by=id&sort=asc&scope={}",
             project, scope
         );
         let mut current_page = 1;
-        let mut map_jobs: HashMap<u64, Vec<u64>> = HashMap::new();
+        let mut map_jobs: Vec<u64> = vec![];
 
         let mut new_uri;
         let mut num_pages;
@@ -121,17 +121,16 @@ impl GitlabJOB {
 
             let parse_json = self.get_json(&new_uri).await;
 
-            map_jobs.insert(project, vec![]);
+            // map_jobs.insert(project, vec![]);
             if let Some((json, pages)) = parse_json {
                 num_pages = pages;
                 match json.as_array() {
                     Some(vec_json) => {
                         vec_json.iter().for_each(|proj| {
-                            let val = proj["id"].as_u64().unwrap();
-                            if let Some(proj) = map_jobs.get_mut(&project) {
-                                proj.push(val);
+                            if let Some(val) = proj["id"].as_u64() {
+                                map_jobs.push(val)
                             } else {
-                                error!("Unable to fill job {val} for project {project}");
+                                error!("Unable to get jobs for project {project}");
                             }
                         });
                     }
@@ -268,53 +267,54 @@ impl GitlabJOB {
         None
     }
 
-    async fn get_inner_projs(&self) -> Vec<u64> {
-        let mut vec_out = vec![];
+    async fn get_inner_projs(&self) -> HashSet<u64> {
+        let mut vec_out = HashSet::new();
 
         if let Some(lone_proj) = self.config.project_id {
-            vec_out.push(lone_proj)
+            vec_out.insert(lone_proj);
         }
 
         if self.config.group_id.is_some() {
-            self.get_group_projs()
-                .await
-                .iter()
-                .for_each(|proj| vec_out.push(*proj))
+            self.get_group_projs().await.iter().for_each(|proj| {
+                vec_out.insert(*proj);
+            });
         }
 
         vec_out
     }
 
-    async fn get_jobs_by_project(&self, scope: JobScope) -> HashMap<u64, Vec<u64>> {
-
+    pub async fn get_jobs_by_project(&self, scope: JobScope) -> HashMap<u64, Vec<u64>> {
         let projects = self.get_inner_projs().await;
 
-        // let stream_projects = stream::iter(&projects)
-        //     .;
+        let stream_projects = stream::iter(&projects)
+            .map(|proj| async move { (proj, self.get_proj_jobs(*proj, scope).await) })
+            .buffer_unordered(STREAM_BUFF_SIZE)
+            .fuse();
+        tokio::pin!(stream_projects);
 
-        // let mut proj_jobs = HashMap::new();
+        let mut proj_jobs: HashMap<u64, Vec<u64>> = HashMap::new();
 
-
-        todo!()
+        while let Some((proj, mut jobs)) = stream_projects.next().await {
+            jobs.sort();
+            jobs.reverse();
+            proj_jobs.insert(*proj, jobs);
+        }
+        proj_jobs
     }
 
     pub async fn get_all_jobs(&self, scope: JobScope) -> HashSet<JobInfo> {
-        let projs_scan_list = self.get_inner_projs().await;
-
-        let proj_stream = stream::iter(&projs_scan_list)
-            .map(|proj| self.get_proj_jobs(*proj, scope))
-            .buffer_unordered(STREAM_BUFF_SIZE)
-            .fuse();
-        tokio::pin!(proj_stream);
 
         let mut jobs_list: Vec<(u64, u64)> = vec![];
 
-        while let Some(proj_hash) = proj_stream.next().await {
-            proj_hash.iter().for_each(|(projid, jobs)| {
+        self.get_jobs_by_project(scope).await
+            .iter()
+            .for_each(|(proj, jobs)| {
                 jobs.iter()
-                    .for_each(|jobid| jobs_list.push((*projid, *jobid)))
-            })
-        }
+                    .for_each(|jobid| {
+                        jobs_list.push((*proj, *jobid))
+                    })
+            });
+
 
         // Get jobs info
         let mut vec_out: HashSet<JobInfo> = HashSet::new();

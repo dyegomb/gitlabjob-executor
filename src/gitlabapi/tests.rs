@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod test_http {
 
-    use std::io::Write;
     use crate::gitlabapi::prelude::*;
+    use std::io::Write;
 
     fn init() {
         let _ = env_logger::builder()
@@ -105,7 +105,7 @@ mod test_http {
 
         let job_test = response.iter().next().unwrap();
 
-        let jobinfo = api.get_jobinfo(job_test.0.to_owned(), job_test.1[0]).await;
+        let jobinfo = api.get_jobinfo(config.project_id.unwrap(), *job_test).await;
 
         debug!("Job informations: {:?}", jobinfo);
     }
@@ -125,24 +125,6 @@ mod test_http {
         let jobinfo = api.get_jobinfo(specify_project, specify_job).await;
 
         debug!("Got JobInfo: {:?}", jobinfo);
-    }
-
-    #[tokio::test]
-    async fn test_get_all_jobs() {
-        init();
-
-        let config = Config::load_config().unwrap();
-
-        let api = GitlabJOB::new(config);
-
-        let output = api.get_all_jobs(JobScope::Canceled).await;
-
-
-        output.iter()
-            .for_each(|job| {
-                debug!("Got Job: {:?}", job)
-            });
-        debug!("Total jobs: {:?}", output.len());
     }
 
     #[tokio::test]
@@ -166,7 +148,9 @@ mod test_http {
 
         let api = GitlabJOB::new(config);
 
-        let output = api.post_json("api/v4/projects/306/trigger/pipeline".to_owned(), form).await;
+        let output = api
+            .post_json("api/v4/projects/306/trigger/pipeline".to_owned(), form)
+            .await;
 
         debug!("Response: {:?}", output);
     }
@@ -189,7 +173,6 @@ mod test_http {
         }
 
         debug!("Job canceled: {}", specify_job);
-
     }
 
     #[tokio::test]
@@ -212,7 +195,6 @@ mod test_http {
         }
 
         debug!("Job played: {}", specify_job);
-
     }
 
     #[tokio::test]
@@ -229,22 +211,41 @@ mod test_http {
 
         let jobinfo = api.get_jobinfo(specify_project, specify_job).await;
 
-        debug!("Job last status: {}", api.get_new_job_status(jobinfo.unwrap()).await.unwrap());
-
+        debug!(
+            "Job last status: {}",
+            api.get_new_job_status(jobinfo.unwrap()).await.unwrap()
+        );
     }
     #[tokio::test]
-    async fn test_sort_jobs() {
+    async fn test_jobs_by_proj() {
         init();
 
         let config = Config::load_config().unwrap();
 
         let api = GitlabJOB::new(config);
 
-        let output = api.get_all_jobs(JobScope::Canceled).await;
+        let output = api.get_jobs_by_project(JobScope::Canceled).await;
+        debug!("Got: {:?}", output);
 
-        let sorted: Vec<(u64, u64)> = output.iter().map(|job| (job.proj_id.unwrap(), job.id.unwrap())).collect();
+        let (_, jobs) = output.iter().next().unwrap();
 
-        debug!("Sorted: {:?}", sorted);
+        let mut sorted = jobs.clone();
+        sorted.sort();
+        sorted.reverse();
 
+        debug!("Sorted? {:?}", sorted);
+    }
+
+    #[tokio::test]
+    async fn test_get_all() {
+        init();
+
+        let config = Config::load_config().unwrap();
+
+        let api = GitlabJOB::new(config);
+
+        let all_jobs = api.get_all_jobs(JobScope::Manual).await;
+
+        debug!("Total jobs: {}", all_jobs.len());
     }
 }
