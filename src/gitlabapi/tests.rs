@@ -214,4 +214,37 @@ mod test_http {
         debug!("Job played: {}", specify_job);
 
     }
+
+    #[tokio::test]
+    #[ignore = "Specif job"]
+    async fn test_new_job_status() {
+        init();
+
+        let config = Config::load_config().unwrap();
+
+        let api = GitlabJOB::new(config.clone());
+
+        let specify_project = 306_u64;
+        let specify_job = 20752_u64;
+
+        let jobinfo = api.get_jobinfo(specify_project, specify_job).await;
+
+        debug!("Job last status: {}", api.get_new_job_status(jobinfo.unwrap()).await.unwrap());
+
+    }
+    #[tokio::test]
+    async fn test_sort_jobs() {
+        init();
+
+        let config = Config::load_config().unwrap();
+
+        let api = GitlabJOB::new(config);
+
+        let output = api.get_all_jobs(JobScope::Canceled).await;
+
+        let sorted: Vec<(u64, u64)> = output.iter().map(|job| (job.proj_id.unwrap(), job.id.unwrap())).collect();
+
+        debug!("Sorted: {:?}", sorted);
+
+    }
 }

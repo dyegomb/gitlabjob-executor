@@ -37,7 +37,10 @@ impl ApiUtils for GitlabJOB {
             HeaderValue::from_str(self.config.private_token.as_ref().unwrap()).unwrap(),
         );
         headers.insert("Accept", HeaderValue::from_str("application/json").unwrap());
-        headers.insert("Content-type", HeaderValue::from_str("application/json; charset=utf-8").unwrap());
+        headers.insert(
+            "Content-type",
+            HeaderValue::from_str("application/json; charset=utf-8").unwrap(),
+        );
 
         reqwest::ClientBuilder::new().default_headers(headers)
     }
@@ -64,20 +67,18 @@ impl ApiUtils for GitlabJOB {
         let uri = self.gen_url(url);
 
         match self.api_builder().build() {
-            Ok(http_client) => {
-                debug!("API CALLER: {:?}", http_client);
-                match method {
-                    HttpMethod::Options => http_client.request(reqwest::Method::OPTIONS, uri),
-                    HttpMethod::Get => http_client.request(reqwest::Method::GET, uri),
-                    HttpMethod::Post => http_client.request(reqwest::Method::POST, uri),
-                    HttpMethod::Put => http_client.request(reqwest::Method::PUT, uri),
-                    HttpMethod::Delete => http_client.request(reqwest::Method::DELETE, uri),
-                    HttpMethod::Head => http_client.request(reqwest::Method::HEAD, uri),
-                    HttpMethod::Trace => http_client.request(reqwest::Method::TRACE, uri),
-                    HttpMethod::Connect => http_client.request(reqwest::Method::CONNECT, uri),
-                    HttpMethod::Patch => http_client.request(reqwest::Method::PATCH, uri),
-                }
-            }
+            Ok(http_client) => match method {
+                HttpMethod::Options => http_client.request(reqwest::Method::OPTIONS, uri),
+                HttpMethod::Get => http_client.request(reqwest::Method::GET, uri),
+                HttpMethod::Post => http_client.request(reqwest::Method::POST, uri),
+                HttpMethod::Put => http_client.request(reqwest::Method::PUT, uri),
+                HttpMethod::Delete => http_client.request(reqwest::Method::DELETE, uri),
+                HttpMethod::Head => http_client.request(reqwest::Method::HEAD, uri),
+                HttpMethod::Trace => http_client.request(reqwest::Method::TRACE, uri),
+                HttpMethod::Connect => http_client.request(reqwest::Method::CONNECT, uri),
+                HttpMethod::Patch => http_client.request(reqwest::Method::PATCH, uri),
+            },
+
             Err(error) => {
                 panic!("Couldn't construct the api caller: {}", error)
             }
@@ -89,10 +90,8 @@ impl ApiUtils for GitlabJOB {
     }
 
     fn api_post(&self, url: &str, form: HashMap<&str, &str>) -> reqwest::RequestBuilder {
-
         let post_body = serde_json::to_vec(&form).unwrap_or(vec![]);
 
-        self.api_caller(url, HttpMethod::Post)
-            .body(post_body)
+        self.api_caller(url, HttpMethod::Post).body(post_body)
     }
 }
