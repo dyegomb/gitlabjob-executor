@@ -1,15 +1,15 @@
 use crate::gitlabapi::prelude::*;
 
 pub enum HttpMethod {
-    Options,
+    // Options,
     Get,
     Post,
-    Put,
-    Delete,
-    Head,
-    Trace,
-    Connect,
-    Patch,
+    // Put,
+    // Delete,
+    // Head,
+    // Trace,
+    // Connect,
+    // Patch,
 }
 
 pub trait ApiUtils {
@@ -17,7 +17,7 @@ pub trait ApiUtils {
     fn gen_url(&self, path: &str) -> reqwest::Url;
     fn api_caller(&self, url: &str, method: HttpMethod) -> reqwest::RequestBuilder;
     fn api_get(&self, url: &str) -> reqwest::RequestBuilder;
-    fn api_post(&self, url: &str, form: HashMap<&str, &str>) -> reqwest::RequestBuilder;
+    fn api_post(&self, url: &str, json: Value) -> reqwest::RequestBuilder;
 
     fn parse_json(text: String) -> Option<Value> {
         if let Ok(parsed_json) = serde_json::from_str::<Value>(&text) {
@@ -68,15 +68,15 @@ impl ApiUtils for GitlabJOB {
 
         match self.api_builder().build() {
             Ok(http_client) => match method {
-                HttpMethod::Options => http_client.request(reqwest::Method::OPTIONS, uri),
+                // HttpMethod::Options => http_client.request(reqwest::Method::OPTIONS, uri),
                 HttpMethod::Get => http_client.request(reqwest::Method::GET, uri),
                 HttpMethod::Post => http_client.request(reqwest::Method::POST, uri),
-                HttpMethod::Put => http_client.request(reqwest::Method::PUT, uri),
-                HttpMethod::Delete => http_client.request(reqwest::Method::DELETE, uri),
-                HttpMethod::Head => http_client.request(reqwest::Method::HEAD, uri),
-                HttpMethod::Trace => http_client.request(reqwest::Method::TRACE, uri),
-                HttpMethod::Connect => http_client.request(reqwest::Method::CONNECT, uri),
-                HttpMethod::Patch => http_client.request(reqwest::Method::PATCH, uri),
+                // HttpMethod::Put => http_client.request(reqwest::Method::PUT, uri),
+                // HttpMethod::Delete => http_client.request(reqwest::Method::DELETE, uri),
+                // HttpMethod::Head => http_client.request(reqwest::Method::HEAD, uri),
+                // HttpMethod::Trace => http_client.request(reqwest::Method::TRACE, uri),
+                // HttpMethod::Connect => http_client.request(reqwest::Method::CONNECT, uri),
+                // HttpMethod::Patch => http_client.request(reqwest::Method::PATCH, uri),
             },
 
             Err(error) => {
@@ -89,9 +89,12 @@ impl ApiUtils for GitlabJOB {
         self.api_caller(url, HttpMethod::Get)
     }
 
-    fn api_post(&self, url: &str, form: HashMap<&str, &str>) -> reqwest::RequestBuilder {
-        let post_body = serde_json::to_vec(&form).unwrap_or(vec![]);
+    fn api_post(&self, url: &str, json: Value) -> reqwest::RequestBuilder {
 
-        self.api_caller(url, HttpMethod::Post).body(post_body)
+        // let post_json = serde_json::json!(form);
+
+        debug!("Post JSON: {}", json);
+
+        self.api_caller(url, HttpMethod::Post).json(&json)
     }
 }

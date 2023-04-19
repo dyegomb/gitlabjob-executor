@@ -45,8 +45,8 @@ impl GitlabJOB {
         }
     }
 
-    pub async fn post_json(&self, url: String, form: HashMap<&str, &str>) -> Option<Value> {
-        let resp = self.api_post(url.as_str(), form);
+    async fn post_json(&self, url: String, json: Value) -> Option<Value> {
+        let resp = self.api_post(url.as_str(), json);
 
         match resp.send().await {
             Err(e) => {
@@ -341,9 +341,9 @@ impl GitlabJOB {
             job.id.unwrap()
         );
 
-        let form = HashMap::from([("", "")]);
+        // let form = HashMap::from([("", "")]);
 
-        let resp = self.post_json(url, form);
+        let resp = self.post_json(url, Value::String("".to_owned()));
 
         if let Some(response) = resp.await {
             debug!("Job played: {:?}", response);
@@ -360,9 +360,9 @@ impl GitlabJOB {
             job.id.unwrap()
         );
 
-        let form = HashMap::from([("", "")]);
+        // let form = HashMap::from([("", "")]);
 
-        let resp = self.post_json(url, form);
+        let resp = self.post_json(url, Value::String("".to_owned()));
 
         if let Some(response) = resp.await {
             debug!("Job canceled: {:?}", response);
@@ -391,6 +391,8 @@ impl GitlabJOB {
 // Tests for private methods
 #[cfg(test)]
 mod test_gitlabjob {
+    use serde_json::json;
+
     use super::*;
 
     fn init() {
@@ -428,5 +430,33 @@ mod test_gitlabjob {
         let pipe_vars = api.get_pipe_vars(specify_project, specify_pipeline).await;
 
         debug!("HashMap from pipeline variables: {:?}", pipe_vars);
+    }
+    #[tokio::test]
+    #[ignore = "It only creates a manual job"]
+    async fn create_job() {
+        init();
+
+        use std::env;
+
+        let token_trigger = env::var("TOKEN_TRIGGER").unwrap_or("123456".to_owned());
+
+        let post_body = json!({
+            "ref":"master", 
+            "token": token_trigger,
+            "variables":{
+                "trigger_email":"test@test.org",
+                "source_id":"123",
+                "ref_source":"main",
+                "PROD_TAG":"PROD-0.0.1"}});
+
+        let config = Config::load_config().unwrap();
+
+        let api = GitlabJOB::new(config);
+
+        let output = api
+            .post_json("api/v4/projects/306/trigger/pipeline".to_owned(), post_body)
+            .await;
+
+        debug!("Response: {:?}", output);
     }
 }

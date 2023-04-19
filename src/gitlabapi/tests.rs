@@ -103,7 +103,7 @@ mod test_http {
             .get_proj_jobs(config.project_id.unwrap(), JobScope::Canceled)
             .await;
 
-        let job_test = response.iter().next().unwrap();
+        let job_test = response.first().unwrap();
 
         let jobinfo = api.get_jobinfo(config.project_id.unwrap(), *job_test).await;
 
@@ -127,33 +127,6 @@ mod test_http {
         debug!("Got JobInfo: {:?}", jobinfo);
     }
 
-    #[tokio::test]
-    #[ignore = "It only creates a manual job"]
-    async fn create_job() {
-        init();
-
-        use std::env;
-
-        let token_trigger = env::var("TOKEN_TRIGGER").unwrap_or("123456".to_owned());
-
-        let mut form = HashMap::new();
-        form.insert("token", token_trigger.as_str());
-        form.insert("ref", "master");
-        form.insert("variables[trigger_email]", "test@test.org");
-        form.insert("variables[source_id]", "123");
-        form.insert("variables[ref_source]", "master");
-        form.insert("variables[PROD_TAG]", "PROD-0.0.1");
-
-        let config = Config::load_config().unwrap();
-
-        let api = GitlabJOB::new(config);
-
-        let output = api
-            .post_json("api/v4/projects/306/trigger/pipeline".to_owned(), form)
-            .await;
-
-        debug!("Response: {:?}", output);
-    }
     #[tokio::test]
     #[ignore = "It'll cancel a specific job"]
     async fn test_cancel_job() {
@@ -244,7 +217,7 @@ mod test_http {
 
         let api = GitlabJOB::new(config);
 
-        let all_jobs = api.get_all_jobs(JobScope::Manual).await;
+        let all_jobs = api.get_all_jobs(JobScope::Canceled).await;
 
         debug!("Total jobs: {}", all_jobs.len());
     }
