@@ -303,18 +303,15 @@ impl GitlabJOB {
     }
 
     pub async fn get_all_jobs(&self, scope: JobScope) -> HashSet<JobInfo> {
-
         let mut jobs_list: Vec<(u64, u64)> = vec![];
 
-        self.get_jobs_by_project(scope).await
+        self.get_jobs_by_project(scope)
+            .await
             .iter()
             .for_each(|(proj, jobs)| {
                 jobs.iter()
-                    .for_each(|jobid| {
-                        jobs_list.push((*proj, *jobid))
-                    })
+                    .for_each(|jobid| jobs_list.push((*proj, *jobid)))
             });
-
 
         // Get jobs info
         let mut vec_out: HashSet<JobInfo> = HashSet::new();
@@ -391,8 +388,6 @@ impl GitlabJOB {
 // Tests for private methods
 #[cfg(test)]
 mod test_gitlabjob {
-    use serde_json::json;
-
     use super::*;
 
     fn init() {
@@ -440,7 +435,7 @@ mod test_gitlabjob {
 
         let token_trigger = env::var("TOKEN_TRIGGER").unwrap_or("123456".to_owned());
 
-        let post_body = json!({
+        let post_body = serde_json::json!({
             "ref":"master", 
             "token": token_trigger,
             "variables":{
