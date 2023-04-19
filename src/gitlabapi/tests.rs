@@ -198,15 +198,20 @@ mod test_http {
         let api = GitlabJOB::new(config);
 
         let output = api.get_jobs_by_project(JobScope::Canceled).await;
-        debug!("Got: {:?}", output);
+        let mut total_jobs = 0;
 
-        let (_, jobs) = output.iter().next().unwrap();
+        output.iter()
+            .for_each(|(projid, jobinfo)| {
+                debug!("************************\nGot Project: {}", projid);
+                jobinfo.iter()
+                    .for_each(|job| {
+                        total_jobs += 1;
+                        debug!("=================\n{:?}", job);
+                    });
+            });
 
-        let mut sorted = jobs.clone();
-        sorted.sort();
-        sorted.reverse();
-
-        debug!("Sorted? {:?}", sorted);
+        debug!("Got projects: {:?}", output.keys().len());
+        debug!("Total jobs: {}", total_jobs);
     }
 
     #[tokio::test]
@@ -217,8 +222,26 @@ mod test_http {
 
         let api = GitlabJOB::new(config);
 
-        let all_jobs = api.get_all_jobs(JobScope::Canceled).await;
+        let all_jobs = api.get_all_jobs(JobScope::Manual).await;
 
         debug!("Total jobs: {}", all_jobs.len());
     }
+
+    #[tokio::test]
+    async fn test_get_pipelines() {
+        init();
+
+        let config = Config::load_config().unwrap();
+        
+        let projid = config.project_id.unwrap();
+
+        let api = GitlabJOB::new(config);
+
+        let pipelines = api.get_jobs_by_pipeline(projid, JobScope::Canceled).await;
+    
+
+        debug!("Pipelines: \n{:?}", pipelines);
+
+    }
+
 }

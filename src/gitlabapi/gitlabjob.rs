@@ -105,10 +105,10 @@ impl GitlabJOB {
         vec_projs
     }
 
-    pub async fn get_proj_jobs(&self, project: u64, scope: JobScope) -> Vec<u64> {
+    pub async fn get_proj_jobs(&self, projid: u64, scope: JobScope) -> Vec<u64> {
         let uri = format!(
             "/api/v4/projects/{}/jobs?per_page=100&order_by=id&sort=asc&scope={}",
-            project, scope
+            projid, scope
         );
         let mut current_page = 1;
         let mut map_jobs: Vec<u64> = vec![];
@@ -130,7 +130,7 @@ impl GitlabJOB {
                             if let Some(val) = proj["id"].as_u64() {
                                 map_jobs.push(val)
                             } else {
-                                error!("Unable to get jobs for project {project}");
+                                error!("Unable to get jobs for project {projid}");
                             }
                         });
                     }
@@ -283,7 +283,7 @@ impl GitlabJOB {
         vec_out
     }
 
-    pub async fn get_jobs_by_project(&self, scope: JobScope) -> HashMap<u64, Vec<u64>> {
+    pub async fn get_jobs_by_project(&self, scope: JobScope) -> HashMap<u64, Vec<JobInfo>> {
         let projects = self.get_inner_projs().await;
 
         let stream_projects = stream::iter(&projects)
@@ -292,41 +292,54 @@ impl GitlabJOB {
             .fuse();
         tokio::pin!(stream_projects);
 
-        let mut proj_jobs: HashMap<u64, Vec<u64>> = HashMap::new();
-
+        let mut projid_jobid_tuple: Vec<(u64, u64)> = vec![];
         while let Some((proj, mut jobs)) = stream_projects.next().await {
             jobs.sort();
             jobs.reverse();
-            proj_jobs.insert(*proj, jobs);
+            jobs.iter().for_each(|jobid| {
+                projid_jobid_tuple.push((*proj, *jobid));
+            });
         }
+
+        let mut stream_jobs = stream::iter(&projid_jobid_tuple)
+            .map(|(projid, jobid)| async move { (projid, self.get_jobinfo(*projid, *jobid).await) })
+            .buffer_unordered(STREAM_BUFF_SIZE)
+            .fuse();
+
+        let mut proj_jobs: HashMap<u64, Vec<JobInfo>> = HashMap::new();
+        while let Some((projid, jobinfo)) = stream_jobs.next().await {
+            if let Some(jobinfo) = jobinfo {
+                proj_jobs
+                    .entry(*projid)
+                    .and_modify(|jobs| {
+                        jobs.push(jobinfo.clone());
+                    })
+                    .or_insert(Vec::from([jobinfo]));
+            }
+        }
+
         proj_jobs
     }
 
+    pub async fn get_jobs_by_pipeline(
+        &self,
+        projid: u64,
+        scope: JobScope,
+    ) -> HashMap<u64, Vec<JobInfo>> {
+        todo!()
+    }
+
     pub async fn get_all_jobs(&self, scope: JobScope) -> HashSet<JobInfo> {
-        let mut jobs_list: Vec<(u64, u64)> = vec![];
+        let mut vec_out: HashSet<JobInfo> = HashSet::new();
 
         self.get_jobs_by_project(scope)
             .await
             .iter()
-            .for_each(|(proj, jobs)| {
-                jobs.iter()
-                    .for_each(|jobid| jobs_list.push((*proj, *jobid)))
+            .for_each(|(_, jobs)| {
+                jobs.iter().for_each(|jobinfo| {
+                    vec_out.insert(jobinfo.to_owned());
+                });
             });
-
-        // Get jobs info
-        let mut vec_out: HashSet<JobInfo> = HashSet::new();
-
-        let jobs_stream = stream::iter(&jobs_list)
-            .map(|(projid, jobid)| self.get_jobinfo(*projid, *jobid))
-            .buffer_unordered(STREAM_BUFF_SIZE)
-            .fuse();
-        tokio::pin!(jobs_stream);
-
-        while let Some(jobinfo) = jobs_stream.next().await {
-            if let Some(job) = jobinfo {
-                vec_out.insert(job);
-            }
-        }
 
         vec_out
     }
@@ -453,5 +466,21 @@ mod test_gitlabjob {
             .await;
 
         debug!("Response: {:?}", output);
+    }
+    #[tokio::test]
+    async fn test_get_inner_projects() {
+        init();
+
+        let config = Config::load_config().unwrap();
+
+        let api = GitlabJOB::new(config);
+
+        let output = api.get_inner_projs().await;
+
+        let mut sorted: Vec<u64> = output.into_iter().collect();
+        sorted.sort();
+
+        debug!("{:?}", sorted);
+        debug!("Total projects: {}", sorted.len());
     }
 }
