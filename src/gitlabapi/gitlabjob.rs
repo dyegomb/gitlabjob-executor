@@ -321,12 +321,29 @@ impl GitlabJOB {
         proj_jobs
     }
 
-    pub async fn get_jobs_by_pipeline(
+    pub async fn get_jobs_by_proj_and_pipeline(
         &self,
-        projid: u64,
         scope: JobScope,
-    ) -> HashMap<u64, Vec<JobInfo>> {
-        todo!()
+    ) -> HashMap<u64, HashMap<u64, Vec<JobInfo>>> {
+        let proj_jobs = self.get_jobs_by_project(scope).await;
+
+        let mut output: HashMap<u64, HashMap<u64, Vec<JobInfo>>> = HashMap::new();
+
+        proj_jobs.iter().for_each(|(projid, jobs)| {
+            jobs.iter().for_each(|jobinfo| {
+                let pipeid = jobinfo.pipeline_id.unwrap();
+                output
+                    .entry(*projid)
+                    .and_modify(|pipe_hash| {
+                        pipe_hash.entry(pipeid).and_modify(|jobs_vec| {
+                            jobs_vec.push(jobinfo.to_owned());
+                        }).or_insert(vec![jobinfo.to_owned()]);
+                    })
+                    .or_insert(HashMap::from([(pipeid, vec![jobinfo.to_owned()])]));
+            });
+        });
+
+        output
     }
 
     pub async fn get_all_jobs(&self, scope: JobScope) -> HashSet<JobInfo> {
@@ -449,7 +466,8 @@ mod test_gitlabjob {
         let token_trigger = env::var("TOKEN_TRIGGER").unwrap_or("123456".to_owned());
 
         let post_body = serde_json::json!({
-            "ref":"master", 
+            // "ref":"master", 
+            "ref":"main", 
             "token": token_trigger,
             "variables":{
                 "trigger_email":"test@test.org",
@@ -458,11 +476,15 @@ mod test_gitlabjob {
                 "PROD_TAG":"PROD-0.0.1"}});
 
         let config = Config::load_config().unwrap();
+        let projid = config.project_id.unwrap();
 
         let api = GitlabJOB::new(config);
 
         let output = api
-            .post_json("api/v4/projects/306/trigger/pipeline".to_owned(), post_body)
+            .post_json(
+                format!("api/v4/projects/{projid}/trigger/pipeline"),
+                post_body,
+            )
             .await;
 
         debug!("Response: {:?}", output);

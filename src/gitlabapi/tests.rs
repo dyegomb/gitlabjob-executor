@@ -197,7 +197,7 @@ mod test_http {
 
         let api = GitlabJOB::new(config);
 
-        let output = api.get_jobs_by_project(JobScope::Canceled).await;
+        let output = api.get_jobs_by_project(JobScope::Manual).await;
         let mut total_jobs = 0;
 
         output.iter()
@@ -233,15 +233,20 @@ mod test_http {
 
         let config = Config::load_config().unwrap();
         
-        let projid = config.project_id.unwrap();
-
         let api = GitlabJOB::new(config);
 
-        let pipelines = api.get_jobs_by_pipeline(projid, JobScope::Canceled).await;
+        let pipelines = api.get_jobs_by_proj_and_pipeline(JobScope::Manual).await;
     
-
-        debug!("Pipelines: \n{:?}", pipelines);
-
+        pipelines.iter()
+            .for_each(|(projid, pipe_hash)| {
+                debug!("*********************\nPROJECT: {}", projid);
+                pipe_hash.iter().for_each(|(pipeid, jobs)| {
+                    debug!("=================\nPIPELINE: {}", pipeid);
+                    jobs.iter().for_each(|job| {
+                        debug!("{:?}", job);
+                    });
+                });
+            });
     }
 
 }
