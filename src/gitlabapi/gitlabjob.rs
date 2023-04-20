@@ -4,7 +4,6 @@ const STREAM_BUFF_SIZE: usize = 8;
 
 pub struct GitlabJOB {
     pub config: Config,
-    // headers: HashMap<String, String>
 }
 
 impl GitlabJOB {
@@ -335,9 +334,12 @@ impl GitlabJOB {
                 output
                     .entry(*projid)
                     .and_modify(|pipe_hash| {
-                        pipe_hash.entry(pipeid).and_modify(|jobs_vec| {
-                            jobs_vec.push(jobinfo.to_owned());
-                        }).or_insert(vec![jobinfo.to_owned()]);
+                        pipe_hash
+                            .entry(pipeid)
+                            .and_modify(|jobs_vec| {
+                                jobs_vec.push(jobinfo.to_owned());
+                            })
+                            .or_insert(vec![jobinfo.to_owned()]);
                     })
                     .or_insert(HashMap::from([(pipeid, vec![jobinfo.to_owned()])]));
             });
@@ -412,6 +414,24 @@ impl GitlabJOB {
         }
 
         None
+    }
+
+    pub async fn get_proj_git_tags(&self, projid: u64) -> Vec<String> {
+        let url = format!("api/v4/projects/{projid}/repository/tags?order_by=updated");
+
+        let mut got_tags = vec![];
+
+        if let Some((resp, _)) = self.get_json(&url).await {
+            if let Some(tags_list) = resp.as_array() {
+                tags_list.iter().for_each(|tag| {
+                    if let Some(tag_name) = tag["name"].as_str() {
+                        got_tags.push(tag_name.to_owned())
+                    }
+                })
+            }
+        }
+
+        got_tags
     }
 }
 

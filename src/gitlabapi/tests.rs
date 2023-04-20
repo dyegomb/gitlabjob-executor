@@ -248,5 +248,19 @@ mod test_http {
                 });
             });
     }
+    #[tokio::test]
+    async fn test_get_git_tags() {
+        init();
+
+        let config = Config::load_config().unwrap();
+        
+        let projid = config.project_id.unwrap();
+
+        let api = GitlabJOB::new(config);
+
+        let value = api.get_proj_git_tags(projid).await;
+
+        debug!("Project tags: {:?}", value);
+    }
 
 }
