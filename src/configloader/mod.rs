@@ -8,7 +8,7 @@ pub mod prelude {
     pub use super::Config;
 }
 
-/// Possible configurations
+/// Uses serde crates *(toml and envy)* to be feeded from **.env** file or from environment variables
 #[derive(Deserialize, Debug, Merge, PartialEq, Clone)]
 #[serde(rename_all = "lowercase")]
 pub struct Config {
@@ -21,7 +21,7 @@ pub struct Config {
 }
 
 impl Config {
-    /// Get configurations from environment or from file
+    /// Method to read configurations from environment variables or from file.
     pub fn load_config() -> Result<Config, &'static str> {
         let mut config;
 
@@ -42,7 +42,7 @@ impl Config {
 
             std::env::vars()
                 .filter(|(k, _)| k.starts_with("SMTP_"))
-                .for_each(|(k, v)| match k.as_str() {
+                .for_each(|(k, v)| match k.to_uppercase().as_str() {
                     "SMTP_USER" => smtp_config.user = Some(v),
                     "SMTP_SERVER" => smtp_config.server = Some(v),
                     "SMTP_PASS" => smtp_config.pass = Some(v),
@@ -87,7 +87,9 @@ impl Config {
 
 #[cfg(test)]
 mod test_load_config {
-    use super::*;
+    use super::prelude::*;
+    use crate::mailsender::prelude::*;
+
 
     fn env_cleaner() {
         std::env::remove_var("group_id".to_uppercase());

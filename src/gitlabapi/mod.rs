@@ -15,3 +15,4 @@ pub mod prelude {
     pub use crate::gitlabapi::jobinfo::{JobInfo, JobScope};
     pub use crate::configloader::Config;
 }
+

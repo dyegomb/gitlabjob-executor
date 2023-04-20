@@ -1,4 +1,35 @@
-// use log::{debug, error, info, warn};
+//! It's a workaround until conclusion of <https://gitlab.com/gitlab-org/gitlab/-/issues/17718>, 
+//! you can create manual jobs that would be started by this program.
+//! 
+//! Its proposal is to execute manual jobs inside a Gitlab group or project, so you can queue a 
+//! manual job that will be started in a proper time by this program.
+//! 
+//! ## How to use
+//! Basically you have to feed the _.env_[^note] file as example below.
+//! 
+//! [^note]: You can change file name to read with the environment variable *`ENV_FILE`*.
+//!  
+//! ```
+//! private_token="XXXXXXXXXXXXX"
+//! base_url="https://gitlab.com/"
+//! project_id=123
+//! group_id=1
+//! production_tag_key="PROD_TAG"
+//! 
+//! [smtp]
+//! server="mail.com"
+//! user="user"
+//! from="user@mail.com"
+//! to="destination@mail.com"
+//! subject="[Subject Prefix] "
+//! pass="Secret"
+//! ```
+//! 
+//! It also supports definition from environment variables, whom **takes precedence**.
+//! 
+//! The SMTP section is only needed if you want to receive report emails.
+//! SMTP settings from environment variables must has `SMTP_` prefix.
+//! 
 
 mod configloader;
 mod gitlabapi;
@@ -6,11 +37,15 @@ mod mailsender;
 
 use configloader::prelude::*;
 use gitlabapi::prelude::*;
+use mailsender::prelude::*;
 
-// Just a generic Result type to ease error handling for us. Errors in multithreaded
-// async contexts needs some extra restrictions
+/// Just a generic Result type to ease error handling for us. Errors in multithreaded
+/// async contexts needs some extra restrictions
+/// 
+/// Reference: <https://blog.logrocket.com/a-practical-guide-to-async-in-rust/>
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
+/// The actual code to run
 async fn app() -> Result<()> {
     let config = match Config::load_config() {
         Ok(conf) => conf,
@@ -20,6 +55,7 @@ async fn app() -> Result<()> {
     Ok(())
 }
 
+/// Load tokio runtime
 fn main() {
     env_logger::init();
 

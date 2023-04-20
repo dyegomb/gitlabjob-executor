@@ -1,7 +1,9 @@
 use crate::gitlabapi::prelude::*;
 
+/// Specify how many concurrent workers
 const STREAM_BUFF_SIZE: usize = 8;
 
+/// API caller configured from `Config` module.
 pub struct GitlabJOB {
     pub config: Config,
 }
@@ -44,6 +46,7 @@ impl GitlabJOB {
         }
     }
 
+    /// Post facilitator with serde_json::Value as post body
     async fn post_json(&self, url: String, json: Value) -> Option<Value> {
         let resp = self.api_post(url.as_str(), json);
 
@@ -64,6 +67,7 @@ impl GitlabJOB {
         }
     }
 
+    /// Get projects ids from a Gitlab group
     pub async fn get_group_projs(&self) -> Vec<u64> {
         if self.config.group_id.is_none() {
             return vec![];
@@ -104,6 +108,7 @@ impl GitlabJOB {
         vec_projs
     }
 
+    /// Get scoped jobs ids from a Gitlab project.
     pub async fn get_proj_jobs(&self, projid: u64, scope: JobScope) -> Vec<u64> {
         let uri = format!(
             "/api/v4/projects/{}/jobs?per_page=100&order_by=id&sort=asc&scope={}",
@@ -150,6 +155,7 @@ impl GitlabJOB {
         map_jobs
     }
 
+    /// Recover trigger variables from a Gitlab pipeline.
     async fn get_pipe_vars(&self, projid: u64, pipelineid: u64) -> HashMap<String, String> {
         let uri = format!("/api/v4/projects/{projid}/pipelines/{pipelineid}/variables");
 
@@ -186,6 +192,7 @@ impl GitlabJOB {
         hashmap_out
     }
 
+    /// Get some informations from a project. *namely the project "name"*.
     async fn get_proj_info(&self, projid: u64) -> HashMap<String, String> {
         let uri = format!("/api/v4/projects/{projid}");
 
@@ -199,6 +206,7 @@ impl GitlabJOB {
         hash_map
     }
 
+    /// The actual getter of job's informations, returning as `Jobinfo` struct.
     pub async fn get_jobinfo(&self, projid: u64, jobid: u64) -> Option<JobInfo> {
         let uri = format!("/api/v4/projects/{projid}/jobs/{jobid}");
 
@@ -266,6 +274,7 @@ impl GitlabJOB {
         None
     }
 
+    /// Scans the configured project and project group for its children.
     async fn get_inner_projs(&self) -> HashSet<u64> {
         let mut vec_out = HashSet::new();
 
@@ -282,6 +291,7 @@ impl GitlabJOB {
         vec_out
     }
 
+    /// Scans scoped jobs orderning by project ids.
     pub async fn get_jobs_by_project(&self, scope: JobScope) -> HashMap<u64, Vec<JobInfo>> {
         let projects = self.get_inner_projs().await;
 
@@ -320,6 +330,7 @@ impl GitlabJOB {
         proj_jobs
     }
 
+    /// Scans scoped jobs orderning by project ids and its pipelines.
     pub async fn get_jobs_by_proj_and_pipeline(
         &self,
         scope: JobScope,
@@ -348,6 +359,7 @@ impl GitlabJOB {
         output
     }
 
+    /// Scans for all scoped jobs from configured group and project.
     pub async fn get_all_jobs(&self, scope: JobScope) -> HashSet<JobInfo> {
         let mut vec_out: HashSet<JobInfo> = HashSet::new();
 
@@ -363,6 +375,7 @@ impl GitlabJOB {
         vec_out
     }
 
+    /// Starts a manual (paused) job.
     pub async fn play_job(&self, job: JobInfo) -> Result<(), String> {
         let url = format!(
             "api/v4/projects/{}/jobs/{}/play",
@@ -382,6 +395,7 @@ impl GitlabJOB {
         Err(format!("Couldn't play job {:?}", job))
     }
 
+    /// Cancels a job.
     pub async fn cancel_job(&self, job: JobInfo) -> Result<(), String> {
         let url = format!(
             "api/v4/projects/{}/jobs/{}/cancel",
@@ -401,6 +415,7 @@ impl GitlabJOB {
         Err(format!("Couldn't cancel job {:?}", job))
     }
 
+    /// Get an updated job status as `JobScope` enum.
     pub async fn get_new_job_status(&self, job: JobInfo) -> Option<JobScope> {
         let projid = job.proj_id.unwrap();
         let jobid = job.id.unwrap();
@@ -416,6 +431,7 @@ impl GitlabJOB {
         None
     }
 
+    /// Inspect a project for its git tags.
     pub async fn get_proj_git_tags(&self, projid: u64) -> Vec<String> {
         let url = format!("api/v4/projects/{projid}/repository/tags?order_by=updated");
 
