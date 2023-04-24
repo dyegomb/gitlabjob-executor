@@ -3,7 +3,6 @@ mod test_mail {
     use log::debug;
 
     use crate::configloader::prelude::*;
-    use crate::mailsender::prelude::*;
 
     fn init() {
         let _ = env_logger::builder()

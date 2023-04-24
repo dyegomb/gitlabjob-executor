@@ -3,6 +3,9 @@ mod tests;
 mod utils;
 mod gitlabjob;
 
+/// Specify how many concurrent tasks
+pub const STREAM_BUFF_SIZE: usize = 10;
+
 pub mod prelude {
     pub use serde_json::Value;
     pub use reqwest::header::{HeaderMap, HeaderValue};
@@ -14,5 +17,6 @@ pub mod prelude {
     pub use crate::gitlabapi::utils::{ApiUtils, HttpMethod};
     pub use crate::gitlabapi::jobinfo::{JobInfo, JobScope};
     pub use crate::configloader::Config;
+    pub use super::STREAM_BUFF_SIZE;
 }
 

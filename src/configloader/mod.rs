@@ -6,6 +6,7 @@ extern crate toml;
 
 pub mod prelude {
     pub use super::Config;
+    pub use crate::mailsender::prelude::*;
 }
 
 /// Uses serde crates *(toml and envy)* to be feeded from **.env** file or from environment variables
@@ -88,8 +89,6 @@ impl Config {
 #[cfg(test)]
 mod test_load_config {
     use super::prelude::*;
-    use crate::mailsender::prelude::*;
-
 
     fn env_cleaner() {
         std::env::remove_var("group_id".to_uppercase());

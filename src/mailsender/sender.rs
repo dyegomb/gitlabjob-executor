@@ -46,7 +46,7 @@ impl MailSender {
     }
 
     /// Try to autoconfigure mail sender
-    /// based on: https://github.com/lettre/lettre/blob/master/examples/autoconfigure.rs
+    /// based on: <https://github.com/lettre/lettre/blob/master/examples/autoconfigure.rs>
     fn try_build_relay(&mut self) -> Result<(), String> {
 
         let wait_time = Some(Duration::from_secs(20));

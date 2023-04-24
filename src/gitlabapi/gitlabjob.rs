@@ -1,8 +1,5 @@
 use crate::gitlabapi::prelude::*;
 
-/// Specify how many concurrent workers
-const STREAM_BUFF_SIZE: usize = 8;
-
 /// API caller configured from `Config` module.
 pub struct GitlabJOB {
     pub config: Config,
