@@ -97,7 +97,7 @@ mod test {
     }
 
     #[tokio::test]
-    async fn test_multi_pipelines() {
+    async fn test_multiple_pipelines() {
         init();
 
         let config = Config::load_config().unwrap();
@@ -117,30 +117,5 @@ mod test {
                 debug!("Cancel pipeline {} ?", pipeid);
             });
         })
-    }
-
-    #[tokio::test]
-    async fn test_stream() {
-        let stream = stream::iter(1..=200)
-            .map(|number| async move {
-                println!("Start job {}", number);
-                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-                number
-            })
-            .buffer_unordered(40)
-            .fuse();
-        tokio::pin!(stream);
-
-        let mut feed: Vec<usize> = vec![];
-        while let Some(num) = stream.next().await {
-            feed.push(num);
-            println!("Done  job: {}", num);
-        }
-
-        println!(
-            "Lenght: {}, sum: {}",
-            feed.len(),
-            feed.iter().sum::<usize>()
-        );
     }
 }
