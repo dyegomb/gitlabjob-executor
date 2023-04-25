@@ -490,7 +490,7 @@ mod test_gitlabjob {
         debug!("HashMap from pipeline variables: {:?}", pipe_vars);
     }
     #[tokio::test]
-    #[ignore = "It only creates a manual job"]
+    #[ignore = "It only triggers a job"]
     async fn create_job() {
         init();
 
@@ -504,7 +504,7 @@ mod test_gitlabjob {
             "token": token_trigger,
             "variables":{
                 "trigger_email":"test@test.org",
-                "source_id":"123",
+                "source_id":"306",
                 "ref_source":"main",
                 "PROD_TAG":"PROD-0.0.1"}});
 

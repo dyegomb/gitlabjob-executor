@@ -108,53 +108,16 @@ mod test {
 
         multi_jobs.iter().for_each(|(proj, pipes)| {
             debug!("On project {}", proj);
-            let mut pipe_key: Vec<u64> = pipes.clone().into_keys().collect();
+            let mut pipe_key: Vec<&u64> = pipes.keys().collect();
 
             pipe_key.sort();
             pipe_key.reverse();
 
             pipe_key.iter().skip(1).for_each(|pipeid| {
-                debug!("Cancel pipeline {} ?", pipeid);
+                debug!("Cancel pipeline: {}", pipeid);
+                debug!("Its jobs: {:?}", pipes.get(pipeid));
             });
         })
-    }
-
-    #[tokio::test]
-    async fn test_stream_next() {
-        let stream = futures::stream::iter(1..=200)
-            .map(|number| async move {
-                println!("Start task: {}", number);
-                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-                number
-            })
-            .buffer_unordered(40)
-            .fuse();
-        tokio::pin!(stream);
-
-        let mut feed: Vec<usize> = vec![];
-        while let Some(num) = stream.next().await {
-            feed.push(num);
-            println!("Done task: {}", num);
-        }
-
-        assert_eq!(200, feed.len());
-        assert_eq!(20100, feed.iter().sum::<usize>());
-    }
-
-    #[tokio::test]
-    async fn test_stream_collect() {
-        let feed: Vec<usize> = futures::stream::iter(1..=200)
-            .map(|number| async move {
-                println!("Start task: {}", number);
-                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-                number
-            })
-            .buffer_unordered(40)
-            .collect()
-            .await;
-
-        assert_eq!(feed.len(), 200);
-        assert_eq!(20100, feed.iter().sum::<usize>());
     }
 
     #[tokio::test]
@@ -175,7 +138,7 @@ mod test {
 
         stream::iter(tagged_jobs)
             .filter_map(|job| async {
-                if api
+                if !api
                     .get_proj_git_tags(job.source_id.unwrap())
                     .await
                     .contains(&job.to_owned().git_tag.unwrap())
@@ -185,12 +148,13 @@ mod test {
                     None
                 }
             })
-            .for_each(|cancel_job| {
+            .for_each_concurrent(STREAM_BUFF_SIZE, |cancel_job| {
                 async move {
                     debug!("Cancel job: {:?}", cancel_job);
-                    // api.cancel_job(cancel_job);
+                    // api.cancel_job(cancel_job).await; // remove the "move" in async
                 }
             })
             .await;
     }
+
 }
