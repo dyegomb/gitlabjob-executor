@@ -1,6 +1,8 @@
 use crate::mailsender::prelude::*;
 use tokio::time::Duration;
 
+
+/// Configuration for mail relay service
 #[derive(Clone)]
 pub struct MailSender {
     pub relay: Option<SmtpTransport>,

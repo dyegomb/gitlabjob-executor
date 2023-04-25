@@ -1,5 +1,6 @@
 use crate::mailsender::prelude::*;
 
+/// Configurations to build mail report function
 #[derive(Deserialize, Debug, Merge, PartialEq, Clone)]
 pub struct SmtpConfig {
     pub server: Option<String>,
@@ -22,6 +23,7 @@ impl SmtpConfig {
         }
     }
 
+    /// Validates  head mail fields
     pub fn is_valid(&self) -> bool {
         let addresses = match &self.to {
             None => false,
