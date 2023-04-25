@@ -118,4 +118,76 @@ mod test {
             });
         })
     }
+
+    #[tokio::test]
+    async fn test_stream_next() {
+        let stream = futures::stream::iter(1..=200)
+            .map(|number| async move {
+                println!("Start task: {}", number);
+                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                number
+            })
+            .buffer_unordered(40)
+            .fuse();
+        tokio::pin!(stream);
+
+        let mut feed: Vec<usize> = vec![];
+        while let Some(num) = stream.next().await {
+            feed.push(num);
+            println!("Done task: {}", num);
+        }
+
+        assert_eq!(200, feed.len());
+        assert_eq!(20100, feed.iter().sum::<usize>());
+    }
+
+    #[tokio::test]
+    async fn test_stream_collect() {
+        let feed: Vec<usize> = futures::stream::iter(1..=200)
+            .map(|number| async move {
+                println!("Start task: {}", number);
+                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                number
+            })
+            .buffer_unordered(40)
+            .collect()
+            .await;
+
+        assert_eq!(feed.len(), 200);
+        assert_eq!(20100, feed.iter().sum::<usize>());
+    }
+
+    #[tokio::test]
+    async fn test_check_source_tag() {
+        init();
+
+        let config = Config::load_config().unwrap();
+
+        let api = GitlabJOB::new(config);
+
+        let proj_jobs = api.get_jobs_by_project(JobScope::Manual).await;
+
+        let tagged_jobs: Vec<JobInfo> = proj_jobs
+            .values()
+            .flat_map(|jobs| jobs.to_vec())
+            .filter(|job| job.git_tag.is_some())
+            .filter(|tagged_job| {
+                api.get_proj_git_tags(tagged_job.source_id.unwrap()).await.contains(&tagged_job.git_tag.unwrap())
+            })
+            .collect();
+
+        // let job_and_tags
+
+        // jobs.iter()
+        //     .for_each(|(proj, jobs)| {
+        //         jobs.iter()
+        //             .for_each(|job| {
+        //                 if let Some(git_tag) = &job.git_tag {
+        //                     if let Some(source_id) = job.source_id {
+        //                         let source_tags = api.get_proj_git_tags(source_id);
+        //                     }
+        //                 };
+        //             });
+        //     })
+    }
 }
