@@ -158,7 +158,7 @@ mod test {
     }
 
     #[tokio::test]
-    async fn test_check_source_tag() {
+    async fn test_cancel_job_with_invalid_tags() {
         init();
 
         let config = Config::load_config().unwrap();
@@ -170,24 +170,27 @@ mod test {
         let tagged_jobs: Vec<JobInfo> = proj_jobs
             .values()
             .flat_map(|jobs| jobs.to_vec())
-            .filter(|job| job.git_tag.is_some())
-            .filter(|tagged_job| {
-                api.get_proj_git_tags(tagged_job.source_id.unwrap()).await.contains(&tagged_job.git_tag.unwrap())
-            })
+            .filter(|job| job.git_tag.is_some() && job.source_id.is_some())
             .collect();
 
-        // let job_and_tags
-
-        // jobs.iter()
-        //     .for_each(|(proj, jobs)| {
-        //         jobs.iter()
-        //             .for_each(|job| {
-        //                 if let Some(git_tag) = &job.git_tag {
-        //                     if let Some(source_id) = job.source_id {
-        //                         let source_tags = api.get_proj_git_tags(source_id);
-        //                     }
-        //                 };
-        //             });
-        //     })
+        stream::iter(tagged_jobs)
+            .filter_map(|job| async {
+                if api
+                    .get_proj_git_tags(job.source_id.unwrap())
+                    .await
+                    .contains(&job.to_owned().git_tag.unwrap())
+                {
+                    Some(job)
+                } else {
+                    None
+                }
+            })
+            .for_each(|cancel_job| {
+                async move {
+                    debug!("Cancel job: {:?}", cancel_job);
+                    // api.cancel_job(cancel_job);
+                }
+            })
+            .await;
     }
 }
