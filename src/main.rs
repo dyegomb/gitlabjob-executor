@@ -57,6 +57,57 @@ async fn app() -> Result<()> {
         Err(err) => panic!("Error loading configurations. {}", err),
     };
 
+    let mail_relay = match &config.smtp {
+        Some(smtp) => match smtp.is_valid() {
+            true => match MailSender::try_new(smtp.clone()).await {
+                Ok(mailer) => mailer.relay,
+                Err(error) => {
+                    error!("{}", error);
+                    None
+                }
+            },
+            false => None,
+        },
+        None => None,
+    };
+
+    // Scan projects for Manual jobs
+    let api = GitlabJOB::new(config);
+    let mut playable_jobs: HashSet<&JobInfo> = HashSet::new();
+    let mut cancel_jobs: HashSet<&JobInfo> = HashSet::new();
+
+    let multi_jobs = api.get_jobs_by_proj_and_pipeline(JobScope::Manual).await;
+
+    info!("Projects with manual/paused jobs: {:?}", multi_jobs.keys());
+
+    multi_jobs.iter().for_each(|(_, pipe_map)| {
+        pipe_map.iter().for_each(|(_, jobs)| {
+            jobs.iter().for_each(|job| {
+                playable_jobs.insert(job);
+            })
+        })
+    });
+
+    multi_jobs.iter().for_each(|(proj, pipes)| {
+        debug!("On project {}", proj);
+        let mut pipe_key: Vec<&u64> = pipes.keys().collect();
+
+        pipe_key.sort();
+        pipe_key.reverse();
+
+        pipe_key.iter().skip(1).for_each(|pipeid| {
+            warn!("Pipeline id to cancel: {}", pipeid);
+            pipes.get(pipeid).iter().for_each(|jobs| {
+                jobs.iter().for_each(|job| {
+                    if playable_jobs.remove(job) {
+                        info!("Job removed from playable list: {:?}", job)
+                    };
+                    cancel_jobs.insert(job);
+                });
+            });
+        });
+    });
+
     Ok(())
 }
 
@@ -156,5 +207,4 @@ mod test {
             })
             .await;
     }
-
 }
