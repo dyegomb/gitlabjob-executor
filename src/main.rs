@@ -42,7 +42,7 @@ mod mailsender;
 
 use configloader::prelude::*;
 use gitlabapi::prelude::*;
-use mailsender::prelude::*;
+// use mailsender::prelude::*;
 
 /// Just a generic Result type to ease error handling for us. Errors in multithreaded
 /// async contexts needs some extra restrictions
