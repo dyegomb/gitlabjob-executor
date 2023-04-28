@@ -96,20 +96,88 @@ async fn app() -> Result<()> {
         pipe_key.reverse();
 
         pipe_key.iter().skip(1).for_each(|pipeid| {
-            warn!("Pipeline id to cancel: {}", pipeid);
+            warn!("Pipeline id to be canceled: {}", pipeid);
             pipes.get(pipeid).iter().for_each(|jobs| {
                 jobs.iter().for_each(|job| {
                     if playable_jobs.remove(job) {
                         info!("Job removed from playable list: {:?}", job)
                     };
-                    cancel_jobs.insert(job);
+                    &cancel_jobs.insert(job);
                 });
             });
         });
     });
 
+    let cancel_message = "";
+
+    let call_cancel_jobs = || async {
+        stream::iter(&cancel_jobs)
+            .map(|job| async {
+                // let message = message.clone();
+                // let api = api.clone();
+                let job = job.to_owned();
+                match api.cancel_job(&job).await {
+                    Ok(_) => {
+                        info!("Job {} due to {}", &job, &cancel_message)
+                    }
+                    Err(error) => {
+                        error!("Error trying to cancel job {}: {}", &job, error);
+                    }
+                }
+            })
+            .buffer_unordered(STREAM_BUFF_SIZE)
+            .collect::<()>()
+            .await;
+        // let _ = &cancel_jobs.clear();
+    };
+
+    // call_cancel_jobs("Teste".to_owned()).await;
+
+    let tagged_jobs: Vec<&JobInfo> = playable_jobs
+        .iter()
+        .filter(|job| job.git_tag.is_some() && job.source_id.is_some())
+        .copied()
+        .collect();
+
+    let teste = stream::iter(tagged_jobs)
+        .filter_map(|job| async {
+            let job_tag = &job.git_tag.clone().unwrap();
+            if api.get_proj_git_tags(job.source_id.unwrap()).await.contains(&job_tag) {
+                None
+            } else {
+                Some(job.clone())
+            }
+        })
+        // .for_each_concurrent( STREAM_BUFF_SIZE,|job| async {
+        //     api.cancel_job(&job).await
+        // })
+        .map(f)
+        // .collect::<Vec<&JobInfo>>()
+        ;
+    // stream::iter(tagged_jobs)
+    //     .filter_map(|job| async {
+    //         if !api
+    //             .get_proj_git_tags(job.source_id.unwrap())
+    //             .await
+    //             .contains(&job.to_owned().git_tag.unwrap())
+    //         {
+    //             Some(job)
+    //         } else {
+    //             None
+    //         }
+    //     })
+    //     .for_each_concurrent(STREAM_BUFF_SIZE, |cancel_job| {
+    //         async move {
+    //             debug!("Cancel job: {:?}", cancel_job);
+    //             // api.cancel_job(cancel_job).await; // remove the "move" in async
+    //         }
+    //     })
+    //     .await;
+
     Ok(())
 }
+
+// async fn cancel_jobs(){}
 
 /// Load tokio runtime
 fn main() {

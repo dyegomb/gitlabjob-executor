@@ -112,3 +112,9 @@ impl JobInfo {
         )
     }
 }
+
+impl Display for JobInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} from project {}", self.id.unwrap_or(00), self.proj_name.to_owned().unwrap_or("unknown".to_owned()))
+    }
+}

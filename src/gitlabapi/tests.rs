@@ -141,7 +141,7 @@ mod test_http {
 
         let jobinfo = api.get_jobinfo(specify_project, specify_job).await;
 
-        if let Err(resp) = api.cancel_job(jobinfo.unwrap()).await {
+        if let Err(resp) = api.cancel_job(&jobinfo.unwrap()).await {
             panic!("Error {}", resp)
         }
 

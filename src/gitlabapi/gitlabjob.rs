@@ -393,7 +393,7 @@ impl GitlabJOB {
     }
 
     /// Cancels a job.
-    pub async fn cancel_job(&self, job: JobInfo) -> Result<(), String> {
+    pub async fn cancel_job(&self, job: &JobInfo) -> Result<(), String> {
         let url = format!(
             "api/v4/projects/{}/jobs/{}/cancel",
             job.proj_id.unwrap(),
