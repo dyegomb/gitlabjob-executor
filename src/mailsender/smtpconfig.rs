@@ -29,7 +29,7 @@ impl SmtpConfig {
             None => false,
             Some(to) => match &self.from {
                 None => false,
-                Some(from) => to.parse::<Mailbox>().is_ok() && from.parse::<Mailbox>().is_ok(),
+                Some(from) => to.parse::<Mailboxes>().is_ok() && from.parse::<Mailboxes>().is_ok(),
             },
         };
 

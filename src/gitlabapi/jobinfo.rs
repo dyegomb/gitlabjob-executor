@@ -104,7 +104,7 @@ impl JobInfo {
                 <li>Deploy project id: <b>{proj_id}</b></li>
                 <li>Deploy pipeline id: <b>{pipeline_id}</b></li>
                 <li>User mail: <b>{user_mail}</b></li>
-                <li>Job URL: <b>{url}</b></li>
+                <li>Job URL: <b><a href={url}>{url}</a></b></li>
                 <li>Job id: <b>{job_id}</b></li>
                 <li>Job status: <b>{status}</b></li>
             </ul>

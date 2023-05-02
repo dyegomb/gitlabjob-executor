@@ -83,7 +83,7 @@ This is a <b>test message</b>. :-)
         let mail_message = config
             .smtp
             .unwrap()
-            .body_builder("Test subject".to_owned(), message.to_owned());
+            .body_builder("Test subject".to_owned(), message.to_owned(), &None);
 
         debug!("{:?}", mail_message);
     }
@@ -106,12 +106,12 @@ This is a <b>test message</b>. :-)
             .smtp
             .clone()
             .unwrap()
-            .body_builder("Test subject".to_owned(), message.to_owned());
+            .body_builder("Test subject".to_owned(), message.to_owned(), &None);
 
         let mail_message2 = config
             .smtp
             .unwrap()
-            .body_builder("Test subject".to_owned(), "Another message test".to_owned());
+            .body_builder("Test subject".to_owned(), "Another message test".to_owned(), &None);
 
         let mailsender = MailSender::try_new(smtp_config.unwrap()).await.unwrap();
 

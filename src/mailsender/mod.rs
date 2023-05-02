@@ -7,7 +7,7 @@ pub mod prelude {
     pub const DEFAULT_SMTP_PORT: u16 = 587;
 
     pub use lettre::message::header::ContentType;
-    pub use lettre::message::Mailbox;
+    pub use lettre::message::{Mailboxes, MessageBuilder};
     pub use lettre::transport::smtp::authentication::Credentials;
     pub use lettre::transport::smtp::client::{Tls, TlsParameters};
     pub use lettre::{Message, SmtpTransport, Transport};

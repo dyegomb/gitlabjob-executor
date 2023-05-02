@@ -42,7 +42,6 @@ mod mailsender;
 
 use configloader::prelude::*;
 use gitlabapi::prelude::*;
-// use mailsender::prelude::*;
 
 /// Just a generic Result type to ease error handling for us. Errors in multithreaded
 /// async contexts needs some extra restrictions
@@ -72,7 +71,7 @@ async fn app() -> Result<()> {
     };
 
     // Scan projects for Manual jobs
-    let api = GitlabJOB::new(config);
+    let api = GitlabJOB::new(&config);
     let mut playable_jobs: HashSet<&JobInfo> = HashSet::new();
     let mut cancel_jobs: HashSet<&JobInfo> = HashSet::new();
 
@@ -100,38 +99,50 @@ async fn app() -> Result<()> {
             pipes.get(pipeid).iter().for_each(|jobs| {
                 jobs.iter().for_each(|job| {
                     if playable_jobs.remove(job) {
-                        info!("Job removed from playable list: {:?}", job)
+                        info!("Job removed from playable list: {}", job)
                     };
-                    &cancel_jobs.insert(job);
+                    cancel_jobs.insert(job);
                 });
             });
         });
     });
 
-    let cancel_message = "";
-
-    let call_cancel_jobs = || async {
-        stream::iter(&cancel_jobs)
-            .map(|job| async {
-                // let message = message.clone();
-                // let api = api.clone();
-                let job = job.to_owned();
-                match api.cancel_job(&job).await {
-                    Ok(_) => {
-                        info!("Job {} due to {}", &job, &cancel_message)
-                    }
-                    Err(error) => {
-                        error!("Error trying to cancel job {}: {}", &job, error);
-                    }
-                }
-            })
-            .buffer_unordered(STREAM_BUFF_SIZE)
-            .collect::<()>()
-            .await;
-        // let _ = &cancel_jobs.clear();
+    let cant_cancel = match api.bulk_jobs_cancel(&cancel_jobs).await {
+        Ok(_) => HashSet::new(),
+        Err(jobs) => {
+            jobs.iter().for_each(|job| {
+                cancel_jobs.remove(job);
+            });
+            jobs
+        }
     };
 
-    // call_cancel_jobs("Teste".to_owned()).await;
+    cancel_jobs.iter().for_each(|job| {
+        warn!("Job {} canceled due to duplicated pipeline.", job);
+
+        if mail_relay.is_some() {
+            debug!("Sending mail report");
+            let to = &job.user_mail;
+            let mut update_job = (*job).clone();
+
+            update_job.status = Some(JobScope::Canceled);
+
+            let smtp = config.smtp.as_ref().unwrap();
+            let body = smtp.body_builder(
+                format!("Job {} canceled due to duplicated pipeline.", update_job),
+                update_job.to_html(),
+                to,
+            );
+
+            let _ = mail_relay.as_ref().unwrap().send(&body);
+        }
+    });
+
+    cant_cancel.iter().for_each(|job| {
+        error!("ERROR while cancels the job {}", job);
+    });
+
+    cancel_jobs.clear();
 
     let tagged_jobs: Vec<&JobInfo> = playable_jobs
         .iter()
@@ -139,21 +150,27 @@ async fn app() -> Result<()> {
         .copied()
         .collect();
 
-    let teste = stream::iter(tagged_jobs)
-        .filter_map(|job| async {
+    let invalid_tags = stream::iter(tagged_jobs)
+        .filter(|job| async {
             let job_tag = &job.git_tag.clone().unwrap();
-            if api.get_proj_git_tags(job.source_id.unwrap()).await.contains(&job_tag) {
-                None
-            } else {
-                Some(job.clone())
-            }
+            !api.get_proj_git_tags(job.source_id.unwrap())
+                .await
+                .contains(job_tag)
         })
-        // .for_each_concurrent( STREAM_BUFF_SIZE,|job| async {
-        //     api.cancel_job(&job).await
-        // })
-        .map(f)
-        // .collect::<Vec<&JobInfo>>()
-        ;
+        .fuse();
+
+    tokio::pin!(invalid_tags);
+
+    while let Some(job) = invalid_tags.next().await {
+        cancel_jobs.insert(job);
+        playable_jobs.remove(job);
+    }
+
+    debug!("Jobs to cancel {:?}", cancel_jobs);
+    // call_cancel_jobs().await;
+
+    debug!("\n\nPlayable jobs:\n{:?}", playable_jobs);
+
     // stream::iter(tagged_jobs)
     //     .filter_map(|job| async {
     //         if !api
@@ -221,7 +238,7 @@ mod test {
 
         let config = Config::load_config().unwrap();
 
-        let api = GitlabJOB::new(config);
+        let api = GitlabJOB::new(&config);
 
         let multi_jobs = api.get_jobs_by_proj_and_pipeline(JobScope::Manual).await;
 
@@ -245,7 +262,7 @@ mod test {
 
         let config = Config::load_config().unwrap();
 
-        let api = GitlabJOB::new(config);
+        let api = GitlabJOB::new(&config);
 
         let proj_jobs = api.get_jobs_by_project(JobScope::Manual).await;
 

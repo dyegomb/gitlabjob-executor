@@ -16,7 +16,7 @@ mod test_http {
         init();
         let config = Config::load_config().unwrap();
 
-        let api = GitlabJOB::new(config);
+        let api = GitlabJOB::new(&config);
 
         let response = api
             .api_get("/api/v4/projects")
@@ -46,7 +46,7 @@ mod test_http {
 
         let config = Config::load_config().unwrap();
 
-        let gitlabjob = GitlabJOB::new(config);
+        let gitlabjob = GitlabJOB::new(&config);
 
         let response = gitlabjob.get_group_projs();
 
@@ -64,7 +64,7 @@ mod test_http {
         let mut config = Config::load_config().unwrap();
         config.group_id = Some(86);
 
-        let gitlabjob = GitlabJOB::new(config);
+        let gitlabjob = GitlabJOB::new(&config);
 
         let response = gitlabjob.get_group_projs();
 
@@ -81,7 +81,7 @@ mod test_http {
 
         let config = Config::load_config().unwrap();
 
-        let api = GitlabJOB::new(config.clone());
+        let api = GitlabJOB::new(&config);
 
         let response = api.get_proj_jobs(config.project_id.unwrap(), JobScope::Canceled);
 
@@ -97,7 +97,7 @@ mod test_http {
 
         let config = Config::load_config().unwrap();
 
-        let api = GitlabJOB::new(config.clone());
+        let api = GitlabJOB::new(&config);
 
         let response = api
             .get_proj_jobs(config.project_id.unwrap(), JobScope::Canceled)
@@ -117,7 +117,7 @@ mod test_http {
 
         let config = Config::load_config().unwrap();
 
-        let api = GitlabJOB::new(config.clone());
+        let api = GitlabJOB::new(&config);
 
         let specify_project = 518_u64;
         let specify_job = 20548_u64;
@@ -134,7 +134,7 @@ mod test_http {
 
         let config = Config::load_config().unwrap();
 
-        let api = GitlabJOB::new(config.clone());
+        let api = GitlabJOB::new(&config);
 
         let specify_project = 306_u64;
         let specify_job = 20753_u64;
@@ -155,7 +155,7 @@ mod test_http {
 
         let config = Config::load_config().unwrap();
 
-        let api = GitlabJOB::new(config.clone());
+        let api = GitlabJOB::new(&config);
 
         let specify_project = 306_u64;
         let specify_job = 20752_u64;
@@ -177,7 +177,7 @@ mod test_http {
 
         let config = Config::load_config().unwrap();
 
-        let api = GitlabJOB::new(config.clone());
+        let api = GitlabJOB::new(&config);
 
         let specify_project = 306_u64;
         let specify_job = 20752_u64;
@@ -195,7 +195,7 @@ mod test_http {
 
         let config = Config::load_config().unwrap();
 
-        let api = GitlabJOB::new(config);
+        let api = GitlabJOB::new(&config);
 
         let output = api.get_jobs_by_project(JobScope::Manual).await;
         let mut total_jobs = 0;
@@ -220,7 +220,7 @@ mod test_http {
 
         let config = Config::load_config().unwrap();
 
-        let api = GitlabJOB::new(config);
+        let api = GitlabJOB::new(&config);
 
         let all_jobs = api.get_all_jobs(JobScope::Manual).await;
 
@@ -233,7 +233,7 @@ mod test_http {
 
         let config = Config::load_config().unwrap();
         
-        let api = GitlabJOB::new(config);
+        let api = GitlabJOB::new(&config);
 
         let pipelines = api.get_jobs_by_proj_and_pipeline(JobScope::Manual).await;
     
@@ -256,7 +256,7 @@ mod test_http {
         
         let projid = config.project_id.unwrap();
 
-        let api = GitlabJOB::new(config);
+        let api = GitlabJOB::new(&config);
 
         let value = api.get_proj_git_tags(projid).await;
 

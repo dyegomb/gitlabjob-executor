@@ -6,13 +6,14 @@ pub struct GitlabJOB {
 }
 
 impl GitlabJOB {
-    pub fn new(config: Config) -> Self {
-        GitlabJOB { config }
+    pub fn new(config: &Config) -> Self {
+        GitlabJOB { config: config.clone() }
     }
 
     /// Get a tuple from an option with serde_json::Value and number of pages as u64
     async fn get_json(&self, url: &String) -> Option<(Value, u64)> {
         let resp = self.api_get(url);
+        debug!("Getting json from: {url}");
 
         match resp.send().await {
             Err(e) => {
@@ -446,6 +447,35 @@ impl GitlabJOB {
 
         got_tags
     }
+
+    pub async fn bulk_jobs_cancel<'a>(
+        &'a self,
+        jobs: &HashSet<&'a JobInfo>,
+    ) -> Result<(), HashSet<&'a JobInfo>> {
+        let stream = stream::iter(jobs)
+            .map(|job| async {
+                    match self.cancel_job(&(**job).clone()).await {
+                    Ok(_) => None,
+                    Err(_) => Some(*job),
+                }
+            })
+            .buffer_unordered(STREAM_BUFF_SIZE)
+            .collect::<HashSet<Option<&JobInfo>>>()
+            .await;
+
+        if stream.is_empty() {
+            Ok(())
+        } else {
+            let mut error_jobs: HashSet<&JobInfo> = HashSet::new();
+            stream.iter().for_each(|job|{
+                if let Some(job) = job {
+                    error_jobs.insert(job);
+                }
+
+            });
+            Err(error_jobs)
+        }
+    }
 }
 
 // Tests for private methods
@@ -466,7 +496,7 @@ mod test_gitlabjob {
 
         let config = Config::load_config().unwrap();
 
-        let api = GitlabJOB::new(config.clone());
+        let api = GitlabJOB::new(&config);
 
         let response = api.get_proj_info(config.project_id.unwrap()).await;
 
@@ -480,7 +510,7 @@ mod test_gitlabjob {
 
         let config = Config::load_config().unwrap();
 
-        let api = GitlabJOB::new(config.clone());
+        let api = GitlabJOB::new(&config);
 
         let specify_project = 513_u64;
         let specify_pipeline = 15253_u64;
@@ -490,7 +520,7 @@ mod test_gitlabjob {
         debug!("HashMap from pipeline variables: {:?}", pipe_vars);
     }
     #[tokio::test]
-    #[ignore = "It only triggers a job"]
+    #[ignore = "It only triggers a pipeline"]
     async fn create_job() {
         init();
 
@@ -503,7 +533,7 @@ mod test_gitlabjob {
             "ref":"main", 
             "token": token_trigger,
             "variables":{
-                "trigger_email":"test@test.org",
+                "trigger_email":"test@test.tst",
                 "source_id":"306",
                 "ref_source":"main",
                 "PROD_TAG":"PROD-0.0.1"}});
@@ -511,7 +541,7 @@ mod test_gitlabjob {
         let config = Config::load_config().unwrap();
         let projid = config.project_id.unwrap();
 
-        let api = GitlabJOB::new(config);
+        let api = GitlabJOB::new(&config);
 
         let output = api
             .post_json(
@@ -528,7 +558,7 @@ mod test_gitlabjob {
 
         let config = Config::load_config().unwrap();
 
-        let api = GitlabJOB::new(config);
+        let api = GitlabJOB::new(&config);
 
         let output = api.get_inner_projs().await;
 
