@@ -163,7 +163,7 @@ mod test_http {
         let jobinfo = api.get_jobinfo(specify_project, specify_job).await;
         debug!("To run job: {:?}", jobinfo);
 
-        if let Err(resp) = api.play_job(jobinfo.unwrap()).await {
+        if let Err(resp) = api.play_job(&jobinfo.unwrap()).await {
             panic!("Error {}", resp)
         }
 

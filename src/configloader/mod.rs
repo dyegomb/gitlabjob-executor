@@ -18,6 +18,7 @@ pub struct Config {
     pub private_token: Option<String>,
     pub base_url: Option<String>,
     pub production_tag_key: Option<String>,
+    pub max_wait_time: Option<u64>,
     pub smtp: Option<SmtpConfig>,
 }
 
@@ -137,6 +138,7 @@ mod test_load_config {
             private_token: None,
             base_url: None,
             production_tag_key: None,
+            max_wait_time: Some(30),
             smtp: None,
         };
 

@@ -40,6 +40,8 @@ mod gitlabapi;
 /// Module to support mail reports
 mod mailsender;
 
+use std::fmt::format;
+
 use configloader::prelude::*;
 use gitlabapi::prelude::*;
 
@@ -51,10 +53,11 @@ type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>
 
 #[derive(Debug)]
 enum MailReason {
-    Success,
     Duplicated,
     InvalidTag,
     ErrorToCancel,
+    ErrorToPlay,
+    Status(JobScope),
 }
 
 /// The actual code to run
@@ -160,7 +163,61 @@ async fn app() -> Result<()> {
     debug!("\n\nPlayable jobs:\n{:?}", playable_jobs);
 
     // Let's play the jobs
+    let played_jobs = stream::iter(&playable_jobs)
+        .map(|job| async {
+            let job = *job;
+            let result = api.play_job(job).await;
+            info!("Job {} started.", job);
+            (job, result)
+        })
+        .buffer_unordered(STREAM_BUFF_SIZE)
+        .fuse();
 
+    tokio::pin!(played_jobs);
+
+    while let Some((job, result)) = played_jobs.next().await {
+        match result {
+            Err(_) => mail_jobs_list.push((job, MailReason::ErrorToPlay)),
+            Ok(_) => {
+                async {
+                    let mut cur_job_status = api.get_new_job_status(job).await;
+                    let pending_status = vec![
+                        JobScope::Pending,
+                        JobScope::Running,
+                        JobScope::WaitingForResource,
+                        JobScope::Manual,
+                    ];
+
+                    use tokio::time;
+
+                    let cronometer = time::Instant::now();
+                    let duration = time::Duration::from_secs(config.max_wait_time.unwrap_or(30));
+                    let loop_time = time::Duration::from_secs(10);
+                    loop {
+                        if let Some(status) = cur_job_status {
+                            if pending_status.contains(&status) {
+                                debug!("Waiting job {}", job);
+                            } else {
+                                break;
+                            }
+                        }
+
+                        if cronometer.elapsed() >= duration {
+                            warn!("Max wait time ended for job {}", job);
+                            break;
+                        }
+
+                        time::sleep(loop_time).await;
+
+                        cur_job_status = api.get_new_job_status(job).await;
+                    }
+
+                    mail_jobs_list.push((job, MailReason::Status(cur_job_status.unwrap_or(JobScope::Invalid))));
+                }
+                .await
+            }
+        }
+    }
 
     // Mail reports
     if let (Some(mailer), Some(smtp_trait)) = (mail_relay, config.smtp) {
@@ -179,12 +236,13 @@ async fn app() -> Result<()> {
 
         for (job, reason) in mail_jobs_list {
             let subject = match reason {
-                MailReason::Success => format!("Job {} succeed", job),
                 MailReason::Duplicated => {
                     format!("Job {} canceled due to duplicated pipeline", job)
                 }
                 MailReason::InvalidTag => format!("Job {} canceled due to invalid git tag", job),
                 MailReason::ErrorToCancel => format!("Error trying to cancel job {}", job),
+                MailReason::ErrorToPlay => format!("Error to start job {}", job),
+                MailReason::Status(status) => format!("Job {} {}", job, status),
             };
 
             let to = &job.user_mail;

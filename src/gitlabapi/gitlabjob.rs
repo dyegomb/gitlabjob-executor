@@ -374,7 +374,7 @@ impl GitlabJOB {
     }
 
     /// Starts a manual (paused) job.
-    pub async fn play_job(&self, job: JobInfo) -> Result<(), String> {
+    pub async fn play_job(&self, job: &JobInfo) -> Result<(), String> {
         let url = format!(
             "api/v4/projects/{}/jobs/{}/play",
             job.proj_id.unwrap(),
