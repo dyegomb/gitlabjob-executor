@@ -49,6 +49,14 @@ use gitlabapi::prelude::*;
 /// Reference: <https://blog.logrocket.com/a-practical-guide-to-async-in-rust/>
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
+#[derive(Debug)]
+enum MailReason {
+    Success,
+    Duplicated,
+    InvalidTag,
+    ErrorToCancel,
+}
+
 /// The actual code to run
 async fn app() -> Result<()> {
     let config = match Config::load_config() {
@@ -74,6 +82,7 @@ async fn app() -> Result<()> {
     let api = GitlabJOB::new(&config);
     let mut playable_jobs: HashSet<&JobInfo> = HashSet::new();
     let mut cancel_jobs: HashSet<&JobInfo> = HashSet::new();
+    let mut mail_jobs_list: Vec<(&JobInfo, MailReason)> = vec![];
 
     let multi_jobs = api.get_jobs_by_proj_and_pipeline(JobScope::Manual).await;
 
@@ -95,54 +104,17 @@ async fn app() -> Result<()> {
         pipe_key.reverse();
 
         pipe_key.iter().skip(1).for_each(|pipeid| {
-            warn!("Pipeline id to be canceled: {}", pipeid);
+            warn!("A duplicated pipeline will be canceled: {}", pipeid);
             pipes.get(pipeid).iter().for_each(|jobs| {
                 jobs.iter().for_each(|job| {
-                    if playable_jobs.remove(job) {
-                        info!("Job removed from playable list: {}", job)
-                    };
+                    warn!("Job {} canceled due to duplicated pipeline.", job);
+                    playable_jobs.remove(job);
                     cancel_jobs.insert(job);
+                    mail_jobs_list.push((job, MailReason::Duplicated))
                 });
             });
         });
     });
-
-    let cant_cancel = match api.bulk_jobs_cancel(&cancel_jobs).await {
-        Ok(_) => HashSet::new(),
-        Err(jobs) => {
-            jobs.iter().for_each(|job| {
-                cancel_jobs.remove(job);
-            });
-            jobs
-        }
-    };
-
-    cancel_jobs.iter().for_each(|job| {
-        warn!("Job {} canceled due to duplicated pipeline.", job);
-
-        if mail_relay.is_some() {
-            debug!("Sending mail report");
-            let to = &job.user_mail;
-            let mut update_job = (*job).clone();
-
-            update_job.status = Some(JobScope::Canceled);
-
-            let smtp = config.smtp.as_ref().unwrap();
-            let body = smtp.body_builder(
-                format!("Job {} canceled due to duplicated pipeline.", update_job),
-                update_job.to_html(),
-                to,
-            );
-
-            let _ = mail_relay.as_ref().unwrap().send(&body);
-        }
-    });
-
-    cant_cancel.iter().for_each(|job| {
-        error!("ERROR while cancels the job {}", job);
-    });
-
-    cancel_jobs.clear();
 
     let tagged_jobs: Vec<&JobInfo> = playable_jobs
         .iter()
@@ -162,39 +134,77 @@ async fn app() -> Result<()> {
     tokio::pin!(invalid_tags);
 
     while let Some(job) = invalid_tags.next().await {
+        warn!("Job {} canceled due to have a invalid git tag.", job);
         cancel_jobs.insert(job);
         playable_jobs.remove(job);
+        mail_jobs_list.push((job, MailReason::InvalidTag));
     }
 
     debug!("Jobs to cancel {:?}", cancel_jobs);
-    // call_cancel_jobs().await;
+
+    let cant_cancel = match api.bulk_jobs_cancel(&cancel_jobs).await {
+        Ok(_) => HashSet::new(),
+        Err(jobs) => {
+            jobs.iter().for_each(|job| {
+                cancel_jobs.remove(job);
+            });
+            jobs
+        }
+    };
+
+    cant_cancel.iter().for_each(|job| {
+        error!("ERROR to cancel the job {}", job);
+        mail_jobs_list.push((job, MailReason::ErrorToCancel))
+    });
 
     debug!("\n\nPlayable jobs:\n{:?}", playable_jobs);
 
-    // stream::iter(tagged_jobs)
-    //     .filter_map(|job| async {
-    //         if !api
-    //             .get_proj_git_tags(job.source_id.unwrap())
-    //             .await
-    //             .contains(&job.to_owned().git_tag.unwrap())
-    //         {
-    //             Some(job)
-    //         } else {
-    //             None
-    //         }
-    //     })
-    //     .for_each_concurrent(STREAM_BUFF_SIZE, |cancel_job| {
-    //         async move {
-    //             debug!("Cancel job: {:?}", cancel_job);
-    //             // api.cancel_job(cancel_job).await; // remove the "move" in async
-    //         }
-    //     })
-    //     .await;
+    // Let's play the jobs
+
+
+    // Mail reports
+    if let (Some(mailer), Some(smtp_trait)) = (mail_relay, config.smtp) {
+        let jobs_new_status = stream::iter(&mail_jobs_list)
+            .map(|(job, _reason)| async {
+                let job_clone = (*job).clone();
+                let new_status = api.get_new_job_status(&job_clone).await;
+
+                (job_clone, new_status)
+            })
+            .buffer_unordered(STREAM_BUFF_SIZE)
+            .collect::<HashMap<JobInfo, Option<JobScope>>>()
+            .await;
+
+        debug!("Sending mail reports.");
+
+        for (job, reason) in mail_jobs_list {
+            let subject = match reason {
+                MailReason::Success => format!("Job {} succeed", job),
+                MailReason::Duplicated => {
+                    format!("Job {} canceled due to duplicated pipeline", job)
+                }
+                MailReason::InvalidTag => format!("Job {} canceled due to invalid git tag", job),
+                MailReason::ErrorToCancel => format!("Error trying to cancel job {}", job),
+            };
+
+            let to = &job.user_mail;
+
+            let mut job_updated = job.to_owned();
+
+            if let Some(job_status) = jobs_new_status.get(job) {
+                if job.status != *job_status {
+                    job_updated.status = *job_status;
+                }
+            };
+
+            let body = smtp_trait.body_builder(subject, job_updated.to_html(), to);
+
+            let _ = mailer.send(&body);
+        }
+    }
 
     Ok(())
 }
-
-// async fn cancel_jobs(){}
 
 /// Load tokio runtime
 fn main() {

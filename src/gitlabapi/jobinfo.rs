@@ -91,7 +91,16 @@ impl JobInfo {
         let git_tag = self.git_tag.as_ref().unwrap_or(&default_string);
         let url = self.url.as_ref().unwrap_or(&default_string);
         let job_id = self.id.unwrap_or(0);
-        let status = self.status.unwrap_or(JobScope::Invalid);
+        // let status = self.status.unwrap_or(JobScope::Invalid);
+        let status = match self.status {
+            Some(status) => match status {
+                JobScope::Failed => String::from("<font color=\"red\">failed</font>"),
+                JobScope::Success => String::from("<font color=\"green\">success</font>"),
+                JobScope::Canceled => String::from("<font color=\"red\">canceled</font>"),
+                _ => status.to_string(),
+            },
+            None => JobScope::Invalid.to_string(),
+        };
 
 
         format!(

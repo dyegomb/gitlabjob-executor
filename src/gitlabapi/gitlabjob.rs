@@ -414,7 +414,7 @@ impl GitlabJOB {
     }
 
     /// Get an updated job status as `JobScope` enum.
-    pub async fn get_new_job_status(&self, job: JobInfo) -> Option<JobScope> {
+    pub async fn get_new_job_status(&self, job: &JobInfo) -> Option<JobScope> {
         let projid = job.proj_id.unwrap();
         let jobid = job.id.unwrap();
 
@@ -448,10 +448,10 @@ impl GitlabJOB {
         got_tags
     }
 
-    pub async fn bulk_jobs_cancel<'a>(
+    pub async fn bulk_jobs_cancel<'a, 'b>(
         &'a self,
-        jobs: &HashSet<&'a JobInfo>,
-    ) -> Result<(), HashSet<&'a JobInfo>> {
+        jobs: &HashSet<&'b JobInfo>,
+    ) -> Result<(), HashSet<&'b JobInfo>> {
         let stream = stream::iter(jobs)
             .map(|job| async {
                     match self.cancel_job(&(**job).clone()).await {
@@ -527,13 +527,14 @@ mod test_gitlabjob {
         use std::env;
 
         let token_trigger = env::var("TOKEN_TRIGGER").unwrap_or("123456".to_owned());
+        let destination_test = env::var("TEST_DESTINATION").unwrap_or("test@test.tst".to_owned());
 
         let post_body = serde_json::json!({
             // "ref":"master", 
             "ref":"main", 
             "token": token_trigger,
             "variables":{
-                "trigger_email":"test@test.tst",
+                "trigger_email": destination_test,
                 "source_id":"306",
                 "ref_source":"main",
                 "PROD_TAG":"PROD-0.0.1"}});

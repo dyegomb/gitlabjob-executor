@@ -186,7 +186,7 @@ mod test_http {
 
         debug!(
             "Job last status: {}",
-            api.get_new_job_status(jobinfo.unwrap()).await.unwrap()
+            api.get_new_job_status(&jobinfo.unwrap()).await.unwrap()
         );
     }
     #[tokio::test]
