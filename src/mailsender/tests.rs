@@ -65,7 +65,7 @@ mod test_mail {
         match mailer_build.await {
             Ok(_) => debug!("New mailer has been built."),
             Err(error) => {
-                panic!("{}", error)
+                error!("{}", error)
             }
         }
     }
