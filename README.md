@@ -1,19 +1,34 @@
-# gitjob-executor
+# gitlabjob
 
-It is a workaround until conclusion of https://gitlab.com/gitlab-org/gitlab/-/issues/17718, you can create manual jobs that would be started by this python work.
+It's a workaround until conclusion of <https://gitlab.com/gitlab-org/gitlab/-/issues/17718>,
+you can create manual jobs that would be started by this program.
 
-Its proposal is to execute manual jobs inside Gitlab group or project, so you can queue a manual job that will be started in a proper time by this program.
+Its proposal is to execute manual jobs inside a Gitlab group or project, so you can queue a
+manual job that will be started in a proper time by this program.
 
-## How to use
-Basically you have to feed the _.env_ file as example below.
+### How to use
+Basically you have to feed the _.env_[^note] file as example below.
 
-```ini
-PRIVATE_TOKEN="XXXXXXXXXXXXX"
-BASE_URL="https://gitlab.company.com/"
-PROJECT_ID="123" # or GROUP_ID="1"
+[^note]: You can change file name to read with the environment variable *`ENV_FILE`*.
+
+```rust
+private_token="XXXXXXXXXXXXX"
+base_url="https://gitlab.com/"
+project_id=123
+group_id=1
+production_tag_key="PROD_TAG"
+
+[smtp]
+server="mail.com"
+user="user"
+from="user@mail.com"
+to="destination@mail.com"
+subject="[Subject Prefix] "
+pass="Secret"
 ```
-If you inform _GROUP_ID_, the _PROJECT_ID_ will be ignored and the manuals jobs of the pipeline projects inside this group will be started.
 
-Another if is when this parameter has an already setted environment variable with the same name, the value on the ".env" will be ignored.
+It also supports definition from environment variables, whom **takes precedence**.
 
-Then you can execute ```python3 executor.py```, you also can use the Gitlab Schedule to execute it regurlarly.
+The SMTP section is only needed if you want to receive report emails.
+SMTP settings from environment variables must has `SMTP_` prefix.
+
