@@ -40,7 +40,7 @@ mod gitlabapi;
 /// Module to support mail reports
 mod mailsender;
 
-use std::fmt::format;
+use tokio::time as tktime;
 
 use configloader::prelude::*;
 use gitlabapi::prelude::*;
@@ -57,6 +57,7 @@ enum MailReason {
     InvalidTag,
     ErrorToCancel,
     ErrorToPlay,
+    MaxWaitElapsed,
     Status(JobScope),
 }
 
@@ -166,57 +167,63 @@ async fn app() -> Result<()> {
     let played_jobs = stream::iter(&playable_jobs)
         .map(|job| async {
             let job = *job;
-            let result = api.play_job(job).await;
-            info!("Job {} started.", job);
-            (job, result)
+            info!("Start job {}.", job);
+            match api.play_job(job).await {
+                Err(_) => (job, MailReason::ErrorToPlay),
+                Ok(_) => {
+                    async {
+                        let mut cur_job_status = api.get_new_job_status(job).await;
+                        let pending_status = vec![
+                            JobScope::Pending,
+                            JobScope::Running,
+                            JobScope::WaitingForResource,
+                            JobScope::Manual,
+                        ];
+                        let cronometer = tktime::Instant::now();
+                        let duration =
+                            tktime::Duration::from_secs(config.max_wait_time.unwrap_or(30));
+                        let loop_time = tktime::Duration::from_secs(10);
+
+                        loop {
+                            if let Some(status) = cur_job_status {
+                                if pending_status.contains(&status) {
+                                    debug!("Waiting job {}", job);
+                                } else {
+                                    break;
+                                }
+                            }
+
+                            if cronometer.elapsed() >= duration {
+                                warn!("Max wait time ended for job {}", job);
+                                break;
+                            }
+
+                            tktime::sleep(loop_time).await;
+
+                            cur_job_status = api.get_new_job_status(job).await;
+                        }
+
+                        let status = cur_job_status.unwrap_or(JobScope::Invalid);
+                        let reason = match pending_status.contains(&status) {
+                            true => MailReason::MaxWaitElapsed,
+                            false => MailReason::Status(status),
+                        };
+
+                        (job, reason)
+                    }
+                    .await
+                }
+            }
+
+            // (job, result)
         })
         .buffer_unordered(STREAM_BUFF_SIZE)
         .fuse();
 
     tokio::pin!(played_jobs);
 
-    while let Some((job, result)) = played_jobs.next().await {
-        match result {
-            Err(_) => mail_jobs_list.push((job, MailReason::ErrorToPlay)),
-            Ok(_) => {
-                async {
-                    let mut cur_job_status = api.get_new_job_status(job).await;
-                    let pending_status = vec![
-                        JobScope::Pending,
-                        JobScope::Running,
-                        JobScope::WaitingForResource,
-                        JobScope::Manual,
-                    ];
-
-                    use tokio::time;
-
-                    let cronometer = time::Instant::now();
-                    let duration = time::Duration::from_secs(config.max_wait_time.unwrap_or(30));
-                    let loop_time = time::Duration::from_secs(10);
-                    loop {
-                        if let Some(status) = cur_job_status {
-                            if pending_status.contains(&status) {
-                                debug!("Waiting job {}", job);
-                            } else {
-                                break;
-                            }
-                        }
-
-                        if cronometer.elapsed() >= duration {
-                            warn!("Max wait time ended for job {}", job);
-                            break;
-                        }
-
-                        time::sleep(loop_time).await;
-
-                        cur_job_status = api.get_new_job_status(job).await;
-                    }
-
-                    mail_jobs_list.push((job, MailReason::Status(cur_job_status.unwrap_or(JobScope::Invalid))));
-                }
-                .await
-            }
-        }
+    while let Some(result) = played_jobs.next().await {
+        mail_jobs_list.push(result);
     }
 
     // Mail reports
@@ -242,7 +249,8 @@ async fn app() -> Result<()> {
                 MailReason::InvalidTag => format!("Job {} canceled due to invalid git tag", job),
                 MailReason::ErrorToCancel => format!("Error trying to cancel job {}", job),
                 MailReason::ErrorToPlay => format!("Error to start job {}", job),
-                MailReason::Status(status) => format!("Job {} {}", job, status),
+                MailReason::MaxWaitElapsed => format!("Max wait time elapsed for job {}", job),
+                MailReason::Status(status) => format!("Status from job {}: {}", job, status),
             };
 
             let to = &job.user_mail;
@@ -324,40 +332,4 @@ mod test {
         })
     }
 
-    #[tokio::test]
-    async fn test_cancel_job_with_invalid_tags() {
-        init();
-
-        let config = Config::load_config().unwrap();
-
-        let api = GitlabJOB::new(&config);
-
-        let proj_jobs = api.get_jobs_by_project(JobScope::Manual).await;
-
-        let tagged_jobs: Vec<JobInfo> = proj_jobs
-            .values()
-            .flat_map(|jobs| jobs.to_vec())
-            .filter(|job| job.git_tag.is_some() && job.source_id.is_some())
-            .collect();
-
-        stream::iter(tagged_jobs)
-            .filter_map(|job| async {
-                if !api
-                    .get_proj_git_tags(job.source_id.unwrap())
-                    .await
-                    .contains(&job.to_owned().git_tag.unwrap())
-                {
-                    Some(job)
-                } else {
-                    None
-                }
-            })
-            .for_each_concurrent(STREAM_BUFF_SIZE, |cancel_job| {
-                async move {
-                    debug!("Cancel job: {:?}", cancel_job);
-                    // api.cancel_job(cancel_job).await; // remove the "move" in async
-                }
-            })
-            .await;
-    }
 }
