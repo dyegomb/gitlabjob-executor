@@ -62,7 +62,11 @@ enum MailReason {
 }
 
 /// The actual code to run
-async fn app() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
+    // Set default log level for INFO, changed with "RUST_LOG"
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+
     let config = match Config::load_config() {
         Ok(conf) => conf,
         Err(err) => panic!("Error loading configurations. {}", err),
@@ -214,8 +218,6 @@ async fn app() -> Result<()> {
                     .await
                 }
             }
-
-            // (job, result)
         })
         .buffer_unordered(STREAM_BUFF_SIZE)
         .fuse();
@@ -272,21 +274,6 @@ async fn app() -> Result<()> {
     Ok(())
 }
 
-/// Load tokio runtime
-fn main() {
-    env_logger::init();
-
-    let rt = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .unwrap();
-
-    match rt.block_on(app()) {
-        Ok(_) => {}
-        Err(e) => error!("An error ocurred: {}", e),
-    };
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -331,5 +318,4 @@ mod test {
             });
         })
     }
-
 }
