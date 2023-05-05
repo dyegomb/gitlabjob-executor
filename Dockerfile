@@ -136,18 +136,20 @@ RUN cargo build --target x86_64-unknown-linux-musl --release
 # ##############
 
 # # FROM debian:bullseye-slim
-FROM alpine
+# FROM alpine
 # FROM busybox
 # FROM alpine:3.16
+FROM scratch
 
 # # RUN mkdir /opt
+WORKDIR /opt
 
 # COPY --from=builder /opt/target/release/gitlabjob /opt/
 # COPY target/x86_64-unknown-linux-musl/release/gitlabjob /opt/
 COPY --from=builder /opt/target/x86_64-unknown-linux-musl/release/gitlabjob /opt/
 COPY .env /opt/
 
-WORKDIR /opt
+
 
 # # # RUN apt-get update; \
 # # #     apt-get install -y --no-install-recommends \
@@ -155,6 +157,6 @@ WORKDIR /opt
 # # #     && apt-get remove -y --auto-remove \
 # # #     && rm -rf /var/lib/apt/lists/*
 
-RUN apk --no-cache add ca-certificates
+# RUN apk --no-cache add ca-certificates
 
 CMD [ "/opt/gitlabjob" ]
