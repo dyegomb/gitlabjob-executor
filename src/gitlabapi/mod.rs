@@ -4,7 +4,7 @@ mod tests;
 mod utils;
 
 /// Specify how many concurrent tasks
-pub const STREAM_BUFF_SIZE: usize = 10;
+pub const STREAM_BUFF_SIZE: usize = 15;
 
 pub mod prelude {
     pub use super::STREAM_BUFF_SIZE;
