@@ -253,7 +253,7 @@ async fn main() -> Result<()> {
                 MailReason::ErrorToCancel => format!("Error trying to cancel job {}", job),
                 MailReason::ErrorToPlay => format!("Error to start job {}", job),
                 MailReason::MaxWaitElapsed => format!("Max wait time elapsed for job {}", job),
-                MailReason::Status(status) => format!("Status from job {}: {}", job, status),
+                MailReason::Status(status) => format!("Status of job {}: {}", job, status),
             };
 
             let to = &job.user_mail;
