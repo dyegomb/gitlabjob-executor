@@ -105,6 +105,8 @@ impl JobInfo {
 
         format!(
             r#"
+            <div>
+            <h2><b>{proj_name}</b>: {status}</h2>
             <ul>
                 <li>Project name: <b>{proj_name}</b></li>
                 <li>Git tag: <b>{git_tag}</b></li>
@@ -117,6 +119,7 @@ impl JobInfo {
                 <li>Job id: <b>{job_id}</b></li>
                 <li>Job status: <b>{status}</b></li>
             </ul>
+            </div>
             "#
         )
     }

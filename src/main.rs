@@ -242,7 +242,7 @@ async fn main() -> Result<()> {
             .collect::<HashMap<JobInfo, Option<JobScope>>>()
             .await;
 
-        debug!("Sending mail reports.");
+        info!("Sending mail reports.");
 
         for (job, reason) in mail_jobs_list {
             let subject = match reason {
@@ -272,6 +272,7 @@ async fn main() -> Result<()> {
         }
     }
 
+    info!("Done");
     Ok(())
 }
 
