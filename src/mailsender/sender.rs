@@ -64,9 +64,9 @@ impl MailSender {
         };
 
 
-        let mut mailer = if creds.is_some() {
+        let mut mailer = if let Some(creds) = creds {
             match SmtpTransport::relay(&self.server) {
-                Ok(relay) => relay.credentials(creds.unwrap()).port(self.port),
+                Ok(relay) => relay.credentials(creds).port(self.port),
                 Err(_) => return Err("Couldn't build mailer".to_owned()),
             }
         } else {
