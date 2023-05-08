@@ -226,6 +226,7 @@ async fn main() -> Result<()> {
     tokio::pin!(played_jobs);
 
     while let Some(result) = played_jobs.next().await {
+        info!("Job {} ended", result.0.to_string());
         mail_jobs_list.push(result);
     }
 
