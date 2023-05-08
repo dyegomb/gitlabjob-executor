@@ -130,8 +130,7 @@ RUN apt-get update \
         pkg-config \
         librust-openssl-dev \
         musl-tools \
-        musl-dev \\
-        # librust-openssl-dev \
+        musl-dev \
         musl-tools \
         musl-dev
 
