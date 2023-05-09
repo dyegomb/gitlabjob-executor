@@ -27,9 +27,9 @@ prod:build:
   image: $CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/docker:latest
   # tags:
   #   - gitlab-org-docker
-  # services:
-  #   - name: $CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/docker:dind
-  #     alias: docker
+  services:
+    - name: $CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX/docker:dind
+      alias: docker
   rules:
     - if: ( $CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "main" ) && $CI_PIPELINE_SOURCE != "schedule"
       changes:
