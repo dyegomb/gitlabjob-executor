@@ -11,12 +11,13 @@ Basically you have to feed the _.env_[^note] file as example below.
 
 [^note]: You can change file name to read with the environment variable *`ENV_FILE`*.
 
-```rust
+```ini
 private_token="XXXXXXXXXXXXX"
 base_url="https://gitlab.com/"
 project_id=123
 group_id=1
-production_tag_key="PROD_TAG"
+production_tag_key="PROD_TAG" # Variable to look for in a pipeline
+max_wait_time=1800 # Max waiting time for a job in seconds
 
 [smtp]
 server="mail.com"
