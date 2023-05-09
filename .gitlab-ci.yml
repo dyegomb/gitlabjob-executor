@@ -9,6 +9,8 @@ executor:
   image: ${CI_REGISTRY_IMAGE}:latest
   tags:
     - gitlab-org-docker
+  script:
+    - ""
 
 prod:build:
   stage: build
