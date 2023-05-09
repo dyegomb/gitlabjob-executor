@@ -1,3 +1,5 @@
+# based on https://github.com/rust-lang/docker-rust/blob/master/1.69.0/bullseye/Dockerfile
+
 FROM debian:11 AS builder
 
 RUN apt-get update \
@@ -51,9 +53,7 @@ RUN cargo build --target x86_64-unknown-linux-musl --release
 
 FROM scratch
 
-WORKDIR /opt
+COPY --from=builder /opt/target/x86_64-unknown-linux-musl/release/gitlabjob /
+COPY .env /
 
-COPY --from=builder /opt/target/x86_64-unknown-linux-musl/release/gitlabjob /opt/
-COPY .env /opt/
-
-ENTRYPOINT [ "/opt/gitlabjob" ]
+ENTRYPOINT [ "/gitlabjob" ]
