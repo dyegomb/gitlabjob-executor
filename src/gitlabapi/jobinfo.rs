@@ -105,19 +105,33 @@ impl JobInfo {
 
         format!(
             r#"
-            <ul>
-                <li>Project name: <b>{proj_name}</b></li>
-                <li>Git tag: <b>{git_tag}</b></li>
-                <li>Branch: <b>{branch}</b></li>
-                <li>Source project id: <b>{source_id}</b></li>
-                <li>Deploy project id: <b>{proj_id}</b></li>
-                <li>Deploy pipeline id: <b>{pipeline_id}</b></li>
-                <li>User mail: <b>{user_mail}</b></li>
-                <li>Job URL: <b><a href={url}>{url}</a></b></li>
-                <li>Job id: <b>{job_id}</b></li>
-                <li>Job status: <b>{status}</b></li>
-            </ul>
-            "#
+            <div style="text-align: left;">
+            <h2 style="text-align: center;">{}: {status}</h2>
+            <table style="border:0px;margin-left:auto;margin-right:auto;">
+                <tr>
+                <td>Project name:</td><td><b>{proj_name}</b></td>
+                </tr><tr>
+                <td>Git tag:</td><td><b>{git_tag}</b></td>
+                </tr><tr>
+                <td>Branch:</td><td><b>{branch}</b></td>
+                </tr><tr>
+                <td>Source project id:</td><td><b>{source_id}</b></td>
+                </tr><tr>
+                <td>Deploy project id:</td><td><b>{proj_id}</b></td>
+                </tr><tr>
+                <td>Deploy pipeline id:</td><td><b>{pipeline_id}</b></td>
+                </tr><tr>
+                <td>User mail:</td><td><b>{user_mail}</b></td>
+                </tr><tr>
+                <td>Job URL:</td><td><b><a href={url}>{url}</a></b></td>
+                </tr><tr>
+                <td>Job id:</td><td><b>{job_id}</b></td>
+                </tr><tr>
+                <td>Job status:</td><td><b>{status}</b></td>
+                </tr>
+            </table>
+            </div>
+            "#, proj_name.to_uppercase()
         )
     }
 }

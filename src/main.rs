@@ -14,7 +14,8 @@
 //! base_url="https://gitlab.com/"
 //! project_id=123
 //! group_id=1
-//! production_tag_key="PROD_TAG"
+//! production_tag_key="PROD_TAG" # Variable to look for in a pipeline
+//! max_wait_time=1800 # Max waiting time for a job in seconds
 //!
 //! [smtp]
 //! server="mail.com"
@@ -225,6 +226,7 @@ async fn main() -> Result<()> {
     tokio::pin!(played_jobs);
 
     while let Some(result) = played_jobs.next().await {
+        info!("Job {} finished", result.0.to_string());
         mail_jobs_list.push(result);
     }
 
@@ -241,7 +243,7 @@ async fn main() -> Result<()> {
             .collect::<HashMap<JobInfo, Option<JobScope>>>()
             .await;
 
-        debug!("Sending mail reports.");
+        info!("Sending mail reports.");
 
         for (job, reason) in mail_jobs_list {
             let subject = match reason {
@@ -252,7 +254,7 @@ async fn main() -> Result<()> {
                 MailReason::ErrorToCancel => format!("Error trying to cancel job {}", job),
                 MailReason::ErrorToPlay => format!("Error to start job {}", job),
                 MailReason::MaxWaitElapsed => format!("Max wait time elapsed for job {}", job),
-                MailReason::Status(status) => format!("Status from job {}: {}", job, status),
+                MailReason::Status(status) => format!("Status of job {}: {}", job, status),
             };
 
             let to = &job.user_mail;
@@ -271,6 +273,7 @@ async fn main() -> Result<()> {
         }
     }
 
+    info!("Done");
     Ok(())
 }
 
