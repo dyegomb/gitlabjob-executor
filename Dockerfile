@@ -55,6 +55,6 @@ RUN cargo build --target x86_64-unknown-linux-musl --release
 FROM scratch
 
 COPY --from=builder /opt/target/x86_64-unknown-linux-musl/release/gitlabjob /
-COPY .env /
+# COPY .env /
 
 ENTRYPOINT [ "/gitlabjob" ]
