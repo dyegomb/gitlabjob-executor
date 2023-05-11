@@ -62,7 +62,6 @@ enum MailReason {
     Status(JobScope),
 }
 
-/// The actual code to run
 #[tokio::main]
 async fn main() -> Result<()> {
     // Set default log level for INFO, changed with "RUST_LOG"
@@ -105,26 +104,7 @@ async fn main() -> Result<()> {
         })
     });
 
-    multi_jobs.iter().for_each(|(proj, pipes)| {
-        debug!("On project {}", proj);
-        let mut pipe_key: Vec<&u64> = pipes.keys().collect();
-
-        pipe_key.sort();
-        pipe_key.reverse();
-
-        pipe_key.iter().skip(1).for_each(|pipeid| {
-            warn!("A duplicated pipeline will be canceled: {}", pipeid);
-            pipes.get(pipeid).iter().for_each(|jobs| {
-                jobs.iter().for_each(|job| {
-                    warn!("Job {} canceled due to duplicated pipeline.", job);
-                    playable_jobs.remove(job);
-                    cancel_jobs.insert(job);
-                    mail_jobs_list.push((job, MailReason::Duplicated))
-                });
-            });
-        });
-    });
-
+    // Search for jobs with invalid tags
     let tagged_jobs: Vec<&JobInfo> = playable_jobs
         .iter()
         .filter(|job| job.git_tag.is_some() && job.source_id.is_some())
@@ -148,6 +128,27 @@ async fn main() -> Result<()> {
         playable_jobs.remove(job);
         mail_jobs_list.push((job, MailReason::InvalidTag));
     }
+
+    // Cancel duplicated pipelines
+    multi_jobs.iter().for_each(|(proj, pipes)| {
+        debug!("On project {}", proj);
+        let mut pipe_key: Vec<&u64> = pipes.keys().collect();
+
+        pipe_key.sort();
+        pipe_key.reverse();
+
+        pipe_key.iter().skip(1).for_each(|pipeid| {
+            warn!("A duplicated pipeline will be canceled: {}", pipeid);
+            pipes.get(pipeid).iter().for_each(|jobs| {
+                jobs.iter().for_each(|job| {
+                    warn!("Job {} canceled due to duplicated pipeline.", job);
+                    playable_jobs.remove(job);
+                    cancel_jobs.insert(job);
+                    mail_jobs_list.push((job, MailReason::Duplicated))
+                });
+            });
+        });
+    });
 
     debug!("Jobs to cancel {:?}", cancel_jobs);
 
