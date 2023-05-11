@@ -47,6 +47,7 @@ WORKDIR /opt
 COPY src /opt/src
 COPY Cargo.toml /opt/
 
+RUN cargo update
 RUN cargo build --target x86_64-unknown-linux-musl --release
 
 # =====================
