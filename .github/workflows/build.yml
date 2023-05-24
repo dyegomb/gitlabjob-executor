@@ -31,17 +31,32 @@ jobs:
   #         # cache-to: type=inline
   #         tags: ghcr.io/dyegomb/gitlabjob:latest
 
-  musl_builder:
+  # musl_builder:
+  #   name: Musl build
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - uses: actions-rs/toolchain@v1
+  #       with:
+  #         toolchain: stable
+  #         target: x86_64-unknown-linux-musl
+  #         override: true
+  #     - uses: actions-rs/cargo@v1
+  #       with:
+  #         command: build
+  #         args: --release --target x86_64-unknown-linux-musl
+
+  gnulinux_builder:
     name: Musl build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
+      - uses: actions-rs/toolchain
         with:
           toolchain: stable
-          target: x86_64-unknown-linux-musl
+          target: x86_64-unknown-linux-gnu
           override: true
-      - uses: actions-rs/cargo@v1
+      - uses: actions-rs/cargo
         with:
           command: build
-          args: --release --target x86_64-unknown-linux-musl
+          args: --release
