@@ -29,7 +29,7 @@ jobs:
           push: true
           # cache-from: type=registry,ref=myorg/myrepository:latest
           # cache-to: type=inline
-          tags: ghcr.io/dyegomb/gitlabjob:latest
+          tags: ghcr.io/dyegomb/gitlabjob/gitlabjob:latest
 
   # musl_builder:
   #   name: Musl build
