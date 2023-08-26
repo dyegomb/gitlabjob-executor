@@ -49,7 +49,7 @@ impl From<String> for JobScope {
     }
 }
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Default)]
 pub struct JobInfo {
     pub id: Option<u64>,
     pub status: Option<JobScope>,
@@ -64,21 +64,6 @@ pub struct JobInfo {
 }
 
 impl JobInfo {
-    pub fn default() -> Self {
-        Self {
-            proj_name: None,
-            proj_id: None,
-            source_id: None,
-            branch: None,
-            pipeline_id: None,
-            user_mail: None,
-            git_tag: None,
-            url: None,
-            id: None,
-            status: None,
-        }
-    }
-
     pub fn to_html(&self) -> String {
         let default_string = "unknown".to_owned();
 
