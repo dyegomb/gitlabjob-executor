@@ -179,7 +179,7 @@ async fn main() -> Result<()> {
                 Ok(_) => {
                     async {
                         let mut cur_job_status = api.get_new_job_status(job).await;
-                        let pending_status = vec![
+                        let pending_status = [
                             JobScope::Pending,
                             JobScope::Running,
                             JobScope::WaitingForResource,
