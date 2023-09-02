@@ -79,10 +79,10 @@ impl GitlabJOB {
         let mut vec_projs: Vec<u64> = vec![];
 
         let mut current_page = 1;
-        let mut num_pages;
 
         loop {
             let new_uri = format!("{}&page={}", &base_uri, current_page);
+            let num_pages;
 
             if let Some((json, total_pages)) = self.get_json(&new_uri).await {
                 num_pages = total_pages;
@@ -210,9 +210,9 @@ impl GitlabJOB {
 
         let (parse_json, project_infos) = join!(self.get_json(&uri), self.get_proj_info(projid));
 
-        let mut jobinfo = JobInfo::default();
-        jobinfo.proj_id = Some(projid);
-        jobinfo.id = Some(jobid);
+        let mut jobinfo = JobInfo { id: Some(jobid), proj_id: Some(projid), ..Default::default() };
+        // jobinfo.proj_id = Some(projid);
+        // jobinfo.id = Some(jobid);
 
         if let Some((json, _)) = parse_json {
             jobinfo.status = json["status"]
