@@ -9,6 +9,8 @@ Its proposal is to execute manual jobs inside a Gitlab group or project, so you 
 manual job that will be started in a proper time by this program.
 
 ### How to use
+> minimal docker image: `ghcr.io/dyegomb/gitlabjob-executor:latest`
+
 Basically you have to feed the _.env_[^note] file as example below.
 
 [^note]: You can change file name to read with the environment variable *`ENV_FILE`*.

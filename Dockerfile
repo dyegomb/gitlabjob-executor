@@ -44,10 +44,10 @@ RUN rustup target add x86_64-unknown-linux-musl \
     && update-ca-certificates
 
 WORKDIR /opt
-COPY src /opt/src
-COPY Cargo.toml /opt/
 
-RUN cargo update
+COPY Cargo.toml /opt/
+COPY src /opt/src
+
 RUN cargo build --target x86_64-unknown-linux-musl --release
 
 # =====================
