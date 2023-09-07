@@ -1,5 +1,3 @@
-[![Build](https://github.com/dyegomb/gitlabjob-executor/actions/workflows/build.yml/badge.svg)](https://github.com/dyegomb/gitlabjob-executor/actions/workflows/build.yml)
-
 # gitlabjob
 
 It's a workaround until conclusion of <https://gitlab.com/gitlab-org/gitlab/-/issues/17718>,
