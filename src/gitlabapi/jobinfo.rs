@@ -87,7 +87,6 @@ impl JobInfo {
             None => JobScope::Invalid.to_string(),
         };
 
-
         format!(
             r#"
             <div style="text-align: left;">
@@ -116,13 +115,19 @@ impl JobInfo {
                 </tr>
             </table>
             </div>
-            "#, proj_name.to_uppercase()
+            "#,
+            proj_name.to_uppercase()
         )
     }
 }
 
 impl Display for JobInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} from project {}", self.id.unwrap_or(00), self.proj_name.to_owned().unwrap_or("unknown".to_owned()))
+        write!(
+            f,
+            "{} from project {}",
+            self.id.unwrap_or(00),
+            self.proj_name.to_owned().unwrap_or("unknown".to_owned())
+        )
     }
 }

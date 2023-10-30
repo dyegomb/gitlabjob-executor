@@ -80,10 +80,11 @@ mod test_mail {
 This is a <b>test message</b>. :-)
 "#;
 
-        let mail_message = config
-            .smtp
-            .unwrap()
-            .body_builder("Test subject".to_owned(), message.to_owned(), &None);
+        let mail_message =
+            config
+                .smtp
+                .unwrap()
+                .body_builder("Test subject".to_owned(), message.to_owned(), &None);
 
         debug!("{:?}", mail_message);
     }
@@ -102,29 +103,29 @@ This is a <b>test message</b>. :-)
 This is a <b>test message</b>. :-)
 "#;
 
-        let mail_message = config
-            .smtp
-            .clone()
-            .unwrap()
-            .body_builder("Test subject".to_owned(), message.to_owned(), &None);
+        let mail_message = config.smtp.clone().unwrap().body_builder(
+            "Test subject".to_owned(),
+            message.to_owned(),
+            &None,
+        );
 
-        let mail_message2 = config
-            .smtp
-            .unwrap()
-            .body_builder("Test subject".to_owned(), "Another message test".to_owned(), &None);
+        let mail_message2 = config.smtp.unwrap().body_builder(
+            "Test subject".to_owned(),
+            "Another message test".to_owned(),
+            &None,
+        );
 
         let mailsender = MailSender::try_new(smtp_config.unwrap()).await.unwrap();
 
-
-        if let Some(relay) =  mailsender.relay {
-                match relay.send(&mail_message) {
-                    Ok(_) => debug!("Message 1 sent"),
-                    Err(err) => panic!("{}", err)
-                }; 
-                match relay.send(&mail_message2) {
-                    Ok(_) => debug!("Message 2 sent"),
-                    Err(err) => panic!("{}", err)
-                };
+        if let Some(relay) = mailsender.relay {
+            match relay.send(&mail_message) {
+                Ok(_) => debug!("Message 1 sent"),
+                Err(err) => panic!("{}", err),
+            };
+            match relay.send(&mail_message2) {
+                Ok(_) => debug!("Message 2 sent"),
+                Err(err) => panic!("{}", err),
+            };
         };
     }
 }

@@ -200,15 +200,13 @@ mod test_http {
         let output = api.get_jobs_by_project(JobScope::Manual).await;
         let mut total_jobs = 0;
 
-        output.iter()
-            .for_each(|(projid, jobinfo)| {
-                debug!("************************\nGot Project: {}", projid);
-                jobinfo.iter()
-                    .for_each(|job| {
-                        total_jobs += 1;
-                        debug!("=================\n{:?}", job);
-                    });
+        output.iter().for_each(|(projid, jobinfo)| {
+            debug!("************************\nGot Project: {}", projid);
+            jobinfo.iter().for_each(|job| {
+                total_jobs += 1;
+                debug!("=================\n{:?}", job);
             });
+        });
 
         debug!("Got projects: {:?}", output.keys().len());
         debug!("Total jobs: {}", total_jobs);
@@ -232,28 +230,27 @@ mod test_http {
         init();
 
         let config = Config::load_config().unwrap();
-        
+
         let api = GitlabJOB::new(&config);
 
         let pipelines = api.get_jobs_by_proj_and_pipeline(JobScope::Manual).await;
-    
-        pipelines.iter()
-            .for_each(|(projid, pipe_hash)| {
-                debug!("*********************\nPROJECT: {}", projid);
-                pipe_hash.iter().for_each(|(pipeid, jobs)| {
-                    debug!("=================\nPIPELINE: {}", pipeid);
-                    jobs.iter().for_each(|job| {
-                        debug!("{:?}", job);
-                    });
+
+        pipelines.iter().for_each(|(projid, pipe_hash)| {
+            debug!("*********************\nPROJECT: {}", projid);
+            pipe_hash.iter().for_each(|(pipeid, jobs)| {
+                debug!("=================\nPIPELINE: {}", pipeid);
+                jobs.iter().for_each(|job| {
+                    debug!("{:?}", job);
                 });
             });
+        });
     }
     #[tokio::test]
     async fn test_get_git_tags() {
         init();
 
         let config = Config::load_config().unwrap();
-        
+
         let projid = config.project_id.unwrap();
 
         let api = GitlabJOB::new(&config);
@@ -262,5 +259,4 @@ mod test_http {
 
         debug!("Project tags: {:?}", value);
     }
-
 }

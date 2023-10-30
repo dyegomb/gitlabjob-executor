@@ -90,7 +90,6 @@ impl ApiUtils for GitlabJOB {
     }
 
     fn api_post(&self, url: &str, json: Value) -> reqwest::RequestBuilder {
-
         // let post_json = serde_json::json!(form);
 
         debug!("Post JSON: {}", json);
