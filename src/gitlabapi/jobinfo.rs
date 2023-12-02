@@ -1,6 +1,19 @@
 use std::convert::From;
 use std::fmt::Display;
 
+struct ProjectID(u64);
+struct GroupID(u64);
+struct JobID(u64);
+struct PipelineID(u64);
+
+trait GitlabID {}
+
+impl GitlabID for ProjectID {}
+impl GitlabID for GroupID {}
+impl GitlabID for JobID {}
+impl GitlabID for PipelineID {}
+
+
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum JobScope {
     Created,
