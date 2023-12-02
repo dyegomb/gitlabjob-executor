@@ -1,7 +1,7 @@
 # gitlabjob
 
 It's a workaround until conclusion of <https://gitlab.com/gitlab-org/gitlab/-/issues/17718>,
-you can create manual jobs that would be started by this program.
+you can create manual jobs that will be started by this program.
 
 Its proposal is to execute manual jobs inside a Gitlab group or project, so you can queue a
 manual job that will be started in a proper time by this program.
