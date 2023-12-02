@@ -24,3 +24,10 @@ openssl = { version = "0.10", features = ["vendored"] }
 
 [target.'cfg(all(target_env = "musl", target_pointer_width = "64"))'.dependencies.jemallocator]
 version = "0.5"
+
+[workspace]
+members = [
+    "gitlabapi",
+    "configloader",
+    "mailsender"
+]
