@@ -6,3 +6,13 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+lettre = { version = "0.10", features = ["rustls-tls"] }
+merge = "0.1"
+serde = { version = "1.0", features = ["derive"] }
+log = { version = "0.4", features = ["max_level_debug", "release_max_level_info"] }
+tokio = { version = "1", features = ["full"] }
+
+configloader = { path = "../configloader"}
+
+[dev-dependencies]
+env_logger = "0.10"
