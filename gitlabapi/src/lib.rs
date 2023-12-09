@@ -1,14 +1,17 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
+mod getters;
+
+pub use configloader::Config;
+
+/// Specify how many concurrent tasks
+pub const STREAM_BUFF_SIZE: usize = 15;
+
+mod prelude {
+    pub use super::GitlabJOB;
+    pub use super::Config;
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
+/// API caller configured from `Config` module.
+pub struct GitlabJOB {
+    pub config: Config,
 }
+

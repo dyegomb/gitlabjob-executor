@@ -13,7 +13,6 @@ pub use smtpconfig::SmtpConfig;
 pub mod prelude {
     pub use super::Config;
     pub use super::SmtpConfig;
-    // pub use crate::mailsender::prelude::*;
 }
 
 /// Uses serde crates *(toml and envy)* to be feeded from **.env** file or from environment variables
