@@ -1,13 +1,9 @@
+use std::collections::HashMap;
+use async_trait::async_trait;
+
 use crate::prelude::*;
 
 impl GitlabJOB {
-    pub fn new(config: &Config) -> Self {
-        GitlabJOB {
-            config: config.clone(),
-        }
-    }
-
-
     /// Get a tuple from an option with serde_json::Value and number of pages as u64
     async fn get_json(&self, url: &String) -> Option<(Value, u64)> {
         let resp = self.api_get(url);
@@ -42,4 +38,149 @@ impl GitlabJOB {
         }
     }
 
+    /// Recover trigger variables from a Gitlab pipeline.
+    async fn get_pipe_vars(&self, projid: u64, pipelineid: u64) -> HashMap<String, String> {
+        let uri = format!("/api/v4/projects/{projid}/pipelines/{pipelineid}/variables");
+
+        let mut hashmap_out: HashMap<String, String> = HashMap::new();
+
+        let mut new_uri;
+        let mut current_page = 1;
+
+        loop {
+            new_uri = format!("{}?per_page=100&page={}", &uri, current_page);
+            let num_pages;
+
+            if let Some((vars_obj, pages)) = self.get_json(&new_uri).await {
+                num_pages = pages;
+                if let Some(vec_vars) = vars_obj.as_array() {
+                    vec_vars.iter().for_each(|var| {
+                        if let Some(key) = var["key"].as_str() {
+                            if let Some(value) = var["value"].as_str() {
+                                hashmap_out.insert(key.to_owned(), value.to_owned());
+                            }
+                        }
+                    });
+                }
+            } else {
+                num_pages = 1;
+            };
+
+            if current_page >= num_pages {
+                break;
+            }
+            current_page += 1;
+        }
+
+        hashmap_out
+    }
+
+    /// Get projects ids from a Gitlab group
+    pub async fn get_projs(&self, groupid: GroupID) -> Vec<u64> {
+        // if self.config.group_id.is_none() {
+        //     return vec![];
+        // };
+
+        let base_uri = format!(
+            "/api/v4/groups/{}/projects?pagination=keyset&simple=true&per_page=100&order_by=id&sort=asc",
+            // self.config.group_id.unwrap()
+            groupid.0
+        );
+
+        let mut vec_projs: Vec<u64> = vec![];
+
+        let mut current_page = 1;
+
+        loop {
+            let new_uri = format!("{}&page={}", &base_uri, current_page);
+            let num_pages;
+
+            if let Some((json, total_pages)) = self.get_json(&new_uri).await {
+                num_pages = total_pages;
+                if let Some(vec_json) = json.as_array() {
+                    vec_json.iter().for_each(|proj| {
+                        if let Some(val) = proj["id"].as_u64() {
+                            vec_projs.push(val);
+                        }
+                    });
+                }
+            } else {
+                num_pages = 1;
+            }
+
+            if current_page >= num_pages {
+                break;
+            }
+            current_page += 1;
+        }
+
+        vec_projs
+    }
+
+    // /// Get scoped jobs ids from a Gitlab project.
+    // pub async fn get_jobs(&self, projid: ProjectID, scope: JobScope) -> Vec<u64> {
+    //     let uri = format!(
+    //         "/api/v4/projects/{}/jobs?per_page=100&order_by=id&sort=asc&scope={}",
+    //         projid.0, scope
+    //     );
+    //     let mut current_page = 1;
+    //     let mut map_jobs: Vec<u64> = vec![];
+
+    //     let mut new_uri;
+    //     let mut num_pages;
+
+    //     loop {
+    //         new_uri = format!("{}&page={}", uri, current_page);
+
+    //         let parse_json = self.get_json(&new_uri).await;
+
+    //         // map_jobs.insert(project, vec![]);
+    //         if let Some((json, pages)) = parse_json {
+    //             num_pages = pages;
+    //             match json.as_array() {
+    //                 Some(vec_json) => {
+    //                     vec_json.iter().for_each(|proj| {
+    //                         if let Some(val) = proj["id"].as_u64() {
+    //                             map_jobs.push(val)
+    //                         } else {
+    //                             error!("Unable to get jobs for project {}", projid.0);
+    //                         }
+    //                     });
+    //                 }
+    //                 None => {
+    //                     warn!("No jobs found in {}", uri);
+    //                 }
+    //             }
+    //         } else {
+    //             num_pages = 1;
+    //         };
+
+    //         if current_page >= num_pages {
+    //             break;
+    //         }
+    //         current_page += 1;
+    //     }
+
+    //     map_jobs
+    // }
+
+    // pub async fn get_jobs(&self, pipelineid: PipelineID, scope: JobScope) -> Vec<u64> {
+    //     vec![]
+
+    // }
+}
+
+#[async_trait]
+pub trait Getjobs {
+    type SourceID;
+    async fn get_jobs(&self, id: Self::SourceID, scope: JobScope) -> Vec<u64>;
+}
+
+#[async_trait]
+impl Getjobs for GitlabJOB {
+    type SourceID = GroupID;
+
+    async fn get_jobs(&self, id: Self::SourceID, scope: JobScope) -> Vec<u64> {
+        vec![]
+    }
 }
