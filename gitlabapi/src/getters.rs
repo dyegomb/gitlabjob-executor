@@ -117,70 +117,113 @@ impl GitlabJOB {
         vec_projs
     }
 
-    // /// Get scoped jobs ids from a Gitlab project.
-    // pub async fn get_jobs(&self, projid: ProjectID, scope: JobScope) -> Vec<u64> {
-    //     let uri = format!(
-    //         "/api/v4/projects/{}/jobs?per_page=100&order_by=id&sort=asc&scope={}",
-    //         projid.0, scope
-    //     );
-    //     let mut current_page = 1;
-    //     let mut map_jobs: Vec<u64> = vec![];
+}
 
-    //     let mut new_uri;
-    //     let mut num_pages;
+#[async_trait]
+pub trait Getjobs<T, R> {
+    type R;
+    async fn get_jobs(&self, id: T, scope: JobScope) -> Self::R;
+}
 
-    //     loop {
-    //         new_uri = format!("{}&page={}", uri, current_page);
+#[async_trait]
+impl Getjobs<ProjectID, Vec<u64>> for GitlabJOB{ 
+    type R = Vec<u64>;
+    async fn get_jobs(&self, id: ProjectID , scope: JobScope) -> Self::R {
+        let uri = format!(
+            "/api/v4/projects/{}/jobs?per_page=100&order_by=id&sort=asc&scope={}",
+            id.0, scope
+        );
+        let mut current_page = 1;
+        let mut map_jobs: Vec<u64> = vec![];
 
-    //         let parse_json = self.get_json(&new_uri).await;
+        let mut new_uri;
+        let mut num_pages;
 
-    //         // map_jobs.insert(project, vec![]);
-    //         if let Some((json, pages)) = parse_json {
-    //             num_pages = pages;
-    //             match json.as_array() {
-    //                 Some(vec_json) => {
-    //                     vec_json.iter().for_each(|proj| {
-    //                         if let Some(val) = proj["id"].as_u64() {
-    //                             map_jobs.push(val)
-    //                         } else {
-    //                             error!("Unable to get jobs for project {}", projid.0);
-    //                         }
-    //                     });
-    //                 }
-    //                 None => {
-    //                     warn!("No jobs found in {}", uri);
-    //                 }
-    //             }
-    //         } else {
-    //             num_pages = 1;
-    //         };
+        loop {
+            new_uri = format!("{}&page={}", uri, current_page);
 
-    //         if current_page >= num_pages {
-    //             break;
-    //         }
-    //         current_page += 1;
+            let parse_json = self.get_json(&new_uri).await;
+
+            // map_jobs.insert(project, vec![]);
+            if let Some((json, pages)) = parse_json {
+                num_pages = pages;
+                match json.as_array() {
+                    Some(vec_json) => {
+                        vec_json.iter().for_each(|proj| {
+                            if let Some(val) = proj["id"].as_u64() {
+                                map_jobs.push(val)
+                            } else {
+                                error!("Unable to get jobs for project {}", id.0);
+                            }
+                        });
+                    }
+                    None => {
+                        warn!("No jobs found in {}", uri);
+                    }
+                }
+            } else {
+                num_pages = 1;
+            };
+
+            if current_page >= num_pages {
+                break;
+            }
+            current_page += 1;
+        }
+
+        map_jobs
+    }
+}
+
+#[async_trait]
+impl Getjobs<ProjectID, HashMap<u64, Vec<JobInfo>>> for GitlabJOB {
+    type R = HashMap<u64, Vec<JobInfo>>;
+
+    async fn get_jobs(&self, id: ProjectID, scope: JobScope) -> Self::R {
+        todo!()
+    }
+
+}
+
+    // /// Scans scoped jobs orderning by project ids.
+    // pub async fn get_jobs_by_project(&self, scope: JobScope) -> HashMap<u64, Vec<JobInfo>> {
+    //     let projects = self.get_inner_projs().await;
+
+    //     let stream_projects = stream::iter(&projects)
+    //         .map(|proj| async move { (proj, self.get_proj_jobs(*proj, scope).await) })
+    //         .buffer_unordered(STREAM_BUFF_SIZE)
+    //         .fuse();
+    //     tokio::pin!(stream_projects);
+
+    //     let mut projid_jobid_tuple: Vec<(u64, u64)> = vec![];
+    //     while let Some((proj, mut jobs)) = stream_projects.next().await {
+    //         jobs.sort();
+    //         jobs.reverse();
+    //         jobs.iter().for_each(|jobid| {
+    //             projid_jobid_tuple.push((*proj, *jobid));
+    //         });
     //     }
 
-    //     map_jobs
+    //     let mut stream_jobs = stream::iter(&projid_jobid_tuple)
+    //         .map(|(projid, jobid)| async move { (projid, self.get_jobinfo(*projid, *jobid).await) })
+    //         .buffer_unordered(STREAM_BUFF_SIZE)
+    //         .fuse();
+
+    //     let mut proj_jobs: HashMap<u64, Vec<JobInfo>> = HashMap::new();
+    //     while let Some((projid, jobinfo)) = stream_jobs.next().await {
+    //         if let Some(jobinfo) = jobinfo {
+    //             proj_jobs
+    //                 .entry(*projid)
+    //                 .and_modify(|jobs| {
+    //                     jobs.push(jobinfo.clone());
+    //                 })
+    //                 .or_insert(Vec::from([jobinfo]));
+    //         }
+    //     }
+
+    //     proj_jobs
     // }
 
-    // pub async fn get_jobs(&self, pipelineid: PipelineID, scope: JobScope) -> Vec<u64> {
-    //     vec![]
-
-    // }
-}
-
-#[async_trait]
-pub trait Getjobs {
-    type SourceID;
-    async fn get_jobs(&self, id: Self::SourceID, scope: JobScope) -> Vec<u64>;
-}
-
-#[async_trait]
-impl Getjobs for GitlabJOB {
-    type SourceID = GroupID;
-
-    async fn get_jobs(&self, id: Self::SourceID, scope: JobScope) -> Vec<u64> {
-        vec![]
-    }
+trait GetProjects {
+    
 }

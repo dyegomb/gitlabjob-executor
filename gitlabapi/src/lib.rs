@@ -1,7 +1,11 @@
+// use async_trait::async_trait;
+
 mod getters;
 mod utils;
+mod jobinfo;
 
 pub use configloader::Config;
+pub use jobinfo::JobInfo;
 
 /// Specify how many concurrent tasks
 pub const STREAM_BUFF_SIZE: usize = 15;
@@ -9,7 +13,7 @@ pub const STREAM_BUFF_SIZE: usize = 15;
 mod prelude {
     pub use super::Config;
     pub use super::GitlabJOB;
-    pub use super::JobScope;
+    pub use super::{JobScope, JobInfo};
     pub use super::{GroupID, JobID, PipelineID, ProjectID};
     pub use log::{debug, error, warn};
     pub use serde_json::Value;
