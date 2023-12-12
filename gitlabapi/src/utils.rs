@@ -1,5 +1,4 @@
 use reqwest::header::{HeaderMap, HeaderValue};
-use std::fmt::Display;
 
 use crate::prelude::*;
 
@@ -81,23 +80,6 @@ impl GitlabJOB {
         } else {
             error!("Error while parsing to json from: \n{}", text);
             None
-        }
-    }
-}
-
-impl Display for JobScope {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            JobScope::Created => write!(f, "created"),
-            JobScope::Pending => write!(f, "pending"),
-            JobScope::Running => write!(f, "running"),
-            JobScope::Failed => write!(f, "failed"),
-            JobScope::Success => write!(f, "success"),
-            JobScope::Canceled => write!(f, "canceled"),
-            JobScope::Skipped => write!(f, "skipped"),
-            JobScope::WaitingForResource => write!(f, "waiting_for_resource"),
-            JobScope::Manual => write!(f, "manual"),
-            JobScope::Invalid => write!(f, "invalid"),
         }
     }
 }
