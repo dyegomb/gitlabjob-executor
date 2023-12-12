@@ -40,17 +40,3 @@ pub struct ProjectID(u64);
 pub struct JobID(u64);
 #[derive(Debug, Clone, Copy)]
 pub struct PipelineID(u64);
-
-// #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-// pub enum JobScope {
-//     Created,
-//     Pending,
-//     Running,
-//     Failed,
-//     Success,
-//     Canceled,
-//     Skipped,
-//     WaitingForResource,
-//     Manual,
-//     Invalid,
-// }

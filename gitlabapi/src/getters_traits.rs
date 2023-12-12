@@ -71,6 +71,16 @@ impl Getjobs<ProjectID, HashMap<u64, Vec<JobInfo>>> for GitlabJOB {
     }
 }
 
+#[async_trait]
+impl Getjobs<GroupID, HashMap<u64, Vec<JobInfo>>> for GitlabJOB {
+    type R = HashMap<u64, Vec<JobInfo>>;
+
+    async fn get_jobs(&self, id: GroupID, scope: JobScope) -> Self::R {
+        let projects = self.get_projs(id).await;
+        todo!()
+    }
+}
+
 // /// Scans scoped jobs orderning by project ids.
 // pub async fn get_jobs_by_project(&self, scope: JobScope) -> HashMap<u64, Vec<JobInfo>> {
 //     let projects = self.get_inner_projs().await;

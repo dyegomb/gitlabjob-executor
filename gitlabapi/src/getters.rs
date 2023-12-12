@@ -1,6 +1,6 @@
 // mod crate::getters_traits;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::prelude::*;
 // use crate::getters_traits::*;
@@ -78,7 +78,7 @@ impl GitlabJOB {
     }
 
     /// Get projects ids from a Gitlab group
-    pub async fn get_projs(&self, groupid: GroupID) -> Vec<u64> {
+    pub async fn get_projs(&self, groupid: GroupID) -> HashSet<u64> {
         // if self.config.group_id.is_none() {
         //     return vec![];
         // };
@@ -89,7 +89,7 @@ impl GitlabJOB {
             groupid.0
         );
 
-        let mut vec_projs: Vec<u64> = vec![];
+        let mut vec_projs = HashSet::new();
 
         let mut current_page = 1;
 
@@ -102,7 +102,7 @@ impl GitlabJOB {
                 if let Some(vec_json) = json.as_array() {
                     vec_json.iter().for_each(|proj| {
                         if let Some(val) = proj["id"].as_u64() {
-                            vec_projs.push(val);
+                            vec_projs.insert(val);
                         }
                     });
                 }
