@@ -12,6 +12,7 @@ pub use configloader::Config;
 pub const STREAM_BUFF_SIZE: usize = 15;
 
 mod prelude {
+    pub use super::getters_traits::*;
     pub use super::jobinfo::{JobInfo, JobScope};
     pub use super::Config;
     pub use super::GitlabJOB;

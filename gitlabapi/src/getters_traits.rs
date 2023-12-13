@@ -83,15 +83,7 @@ impl Getjobs<ProjectID, HashMap<u64, HashSet<JobInfo>>> for GitlabJOB {
     }
 }
 
-// #[async_trait]
-// impl Getjobs<ProjectID, HashMap<u64, Vec<JobInfo>>> for GitlabJOB {
-//     type R = HashMap<u64, Vec<JobInfo>>;
-
-//     async fn get_jobs(&self, id: ProjectID, scope: JobScope) -> Self::R {
-//         todo!()
-//     }
-// }
-
+/// Scans scoped jobs orderning by project ids.
 #[async_trait]
 impl Getjobs<GroupID, HashMap<u64, HashSet<JobInfo>>> for GitlabJOB {
     type R = HashMap<u64, HashSet<JobInfo>>;
@@ -111,76 +103,9 @@ impl Getjobs<GroupID, HashMap<u64, HashSet<JobInfo>>> for GitlabJOB {
             proj_jobs.extend(hashmap)
         }
 
-        // let mut projid_jobid_tuple: Vec<(ProjectID, JobID)> = vec![];
-        // while let Some((proj, mut jobs)) = stream_projects.next().await {
-        //     // let mut jobs = jobs.clone();
-        //     jobs.sort();
-        //     jobs.reverse();
-        //     jobs.iter().for_each(|jobid| {
-        //         projid_jobid_tuple.push((ProjectID(proj), JobID(jobid)));
-        //     });
-        // }
-
-        // let mut stream_jobs = stream::iter(projid_jobid_tuple)
-        //     .map(|(projid, jobid)| (projid, jobid))
-        //     .map(|(projid, jobid)| async move { (projid, self.get_info((projid, jobid)).await) })
-        //     .buffer_unordered(STREAM_BUFF_SIZE)
-        //     .fuse();
-
-        // let mut proj_jobs: HashMap<u64, Vec<JobInfo>> = HashMap::new();
-        // while let Some((projid, jobinfo)) = stream_projects.next().await {
-        //     if let Ok(jobinfo) = jobinfo {
-        //         proj_jobs
-        //             .entry(projid.0)
-        //             .and_modify(|jobs| {
-        //                 jobs.push(jobinfo.clone());
-        //             })
-        //             .or_insert(Vec::from([jobinfo]));
-        //     }
-        // }
         proj_jobs
-        // todo!()
     }
 }
-
-// /// Scans scoped jobs orderning by project ids.
-// pub async fn get_jobs_by_project(&self, scope: JobScope) -> HashMap<u64, Vec<JobInfo>> {
-//     let projects = self.get_inner_projs().await;
-
-//     let stream_projects = stream::iter(&projects)
-//         .map(|proj| async move { (proj, self.get_proj_jobs(*proj, scope).await) })
-//         .buffer_unordered(STREAM_BUFF_SIZE)
-//         .fuse();
-//     tokio::pin!(stream_projects);
-
-//     let mut projid_jobid_tuple: Vec<(u64, u64)> = vec![];
-//     while let Some((proj, mut jobs)) = stream_projects.next().await {
-//         jobs.sort();
-//         jobs.reverse();
-//         jobs.iter().for_each(|jobid| {
-//             projid_jobid_tuple.push((*proj, *jobid));
-//         });
-//     }
-
-//     let mut stream_jobs = stream::iter(&projid_jobid_tuple)
-//         .map(|(projid, jobid)| async move { (projid, self.get_jobinfo(*projid, *jobid).await) })
-//         .buffer_unordered(STREAM_BUFF_SIZE)
-//         .fuse();
-
-//     let mut proj_jobs: HashMap<u64, Vec<JobInfo>> = HashMap::new();
-//     while let Some((projid, jobinfo)) = stream_jobs.next().await {
-//         if let Some(jobinfo) = jobinfo {
-//             proj_jobs
-//                 .entry(*projid)
-//                 .and_modify(|jobs| {
-//                     jobs.push(jobinfo.clone());
-//                 })
-//                 .or_insert(Vec::from([jobinfo]));
-//         }
-//     }
-
-//     proj_jobs
-// }
 
 #[async_trait]
 pub trait GetInfo<T, R> {
