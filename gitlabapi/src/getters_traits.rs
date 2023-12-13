@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 use futures::join;
+use futures::stream::{self, StreamExt};
 
 use crate::prelude::*;
 // use crate::getters::*;
@@ -77,8 +78,41 @@ impl Getjobs<GroupID, HashMap<u64, Vec<JobInfo>>> for GitlabJOB {
 
     async fn get_jobs(&self, id: GroupID, scope: JobScope) -> Self::R {
         let projects = self.get_projs(id).await;
-        todo!()
+
+        let stream_projects = stream::iter(&projects)
+            .map(|proj| async move { (proj, self.get_proj_jobs(*proj, scope).await) })
+            .buffer_unordered(STREAM_BUFF_SIZE)
+            .fuse();
+        tokio::pin!(stream_projects);
+
+        let mut projid_jobid_tuple: Vec<(u64, u64)> = vec![];
+        while let Some((proj, mut jobs)) = stream_projects.next().await {
+            jobs.sort();
+            jobs.reverse();
+            jobs.iter().for_each(|jobid| {
+                projid_jobid_tuple.push((*proj, *jobid));
+            });
+        }
+
+        let mut stream_jobs = stream::iter(&projid_jobid_tuple)
+            .map(|(projid, jobid)| async move { (projid, self.get_jobinfo(*projid, *jobid).await) })
+            .buffer_unordered(STREAM_BUFF_SIZE)
+            .fuse();
+
+        let mut proj_jobs: HashMap<u64, Vec<JobInfo>> = HashMap::new();
+        while let Some((projid, jobinfo)) = stream_jobs.next().await {
+            if let Some(jobinfo) = jobinfo {
+                proj_jobs
+                    .entry(*projid)
+                    .and_modify(|jobs| {
+                        jobs.push(jobinfo.clone());
+                    })
+                    .or_insert(Vec::from([jobinfo]));
+            }
+        }
+        proj_jobs
     }
+
 }
 
 // /// Scans scoped jobs orderning by project ids.
@@ -119,8 +153,6 @@ impl Getjobs<GroupID, HashMap<u64, Vec<JobInfo>>> for GitlabJOB {
 
 //     proj_jobs
 // }
-
-trait GetProjects {}
 
 #[async_trait]
 pub trait GetInfo<T, R> {
