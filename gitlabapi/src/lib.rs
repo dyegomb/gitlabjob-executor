@@ -3,8 +3,8 @@
 mod getters;
 mod getters_traits;
 mod jobinfo;
-mod utils;
 mod tests;
+mod utils;
 
 pub use configloader::Config;
 

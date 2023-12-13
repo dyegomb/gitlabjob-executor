@@ -40,7 +40,6 @@ mod test_http {
             .write(response.unwrap().as_bytes());
     }
 
-
     #[tokio::test]
     async fn test_get_group_projects() {
         init();
@@ -56,5 +55,4 @@ mod test_http {
             .iter()
             .for_each(|proj| debug!("Got project: {}", proj));
     }
-
 }
