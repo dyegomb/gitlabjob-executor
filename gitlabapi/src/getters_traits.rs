@@ -103,7 +103,7 @@ impl Getjobs<GroupID, HashMap<u64, Vec<JobInfo>>> for GitlabJOB {
 
         let mut proj_jobs: HashMap<u64, Vec<JobInfo>> = HashMap::new();
         while let Some((projid, jobinfo)) = stream_jobs.next().await {
-            if let Some(jobinfo) = jobinfo {
+            if let Ok(jobinfo) = jobinfo {
                 proj_jobs
                     .entry(projid.0)
                     .and_modify(|jobs| {
@@ -182,8 +182,8 @@ impl GetInfo<ProjectID, HashMap<String, String>> for GitlabJOB {
 
 /// The actual getter of job's informations, returning as `Jobinfo` struct.
 #[async_trait]
-impl GetInfo<(ProjectID, JobID), Option<JobInfo>> for GitlabJOB {
-    type R = Option<JobInfo>;
+impl GetInfo<(ProjectID, JobID), Result<JobInfo, String>> for GitlabJOB {
+    type R = Result<JobInfo, String>;
 
     async fn get_info(&self, id: (ProjectID, JobID)) -> Self::R {
         let projid = id.0;
@@ -252,9 +252,9 @@ impl GetInfo<(ProjectID, JobID), Option<JobInfo>> for GitlabJOB {
                 jobinfo.source_id = variables.get("source_id").map(|v| v.parse().unwrap_or(0));
             };
 
-            return Some(jobinfo);
+            return Ok(jobinfo);
         };
 
-        None
+        Err("Failed to gather job infos".to_string())
     }
 }

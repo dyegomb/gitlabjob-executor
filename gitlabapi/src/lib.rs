@@ -4,6 +4,7 @@ mod getters;
 mod getters_traits;
 mod jobinfo;
 mod utils;
+mod tests;
 
 pub use configloader::Config;
 

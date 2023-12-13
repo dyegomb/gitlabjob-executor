@@ -15,3 +15,6 @@ futures = "0.3"
 tokio = { version = "1", features = ["full"] }
 
 configloader = { path = "../configloader"}
+
+[dev-dependencies]
+env_logger = "0.10"
