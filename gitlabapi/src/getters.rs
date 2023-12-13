@@ -7,15 +7,12 @@ use crate::prelude::*;
 
 impl GitlabJOB {
     /// Get a tuple from an option with serde_json::Value and number of pages as u64
-    pub async fn get_json(&self, url: &String) -> Option<(Value, u64)> {
+    pub async fn get_json(&self, url: &String) -> Result<(Value, u64), String> {
         let resp = self.api_get(url);
         debug!("Getting json from: {url}");
 
         match resp.send().await {
-            Err(e) => {
-                error!("Error while getting {url}: {e}");
-                None
-            }
+            Err(e) => Err(format!("Error while getting {url}: {}", e)),
             Ok(response) => {
                 let headers = response.headers().clone();
                 match response.text().await {
@@ -34,7 +31,7 @@ impl GitlabJOB {
                         // debug!("Path \"{url}\" gave json:\n{text}");
                         Self::parse_json(text).map(|val| (val, num_pages))
                     }
-                    Err(_) => None,
+                    Err(e) => Err(e.to_string()),
                 }
             }
         }
@@ -53,7 +50,7 @@ impl GitlabJOB {
             new_uri = format!("{}?per_page=100&page={}", &uri, current_page);
             let num_pages;
 
-            if let Some((vars_obj, pages)) = self.get_json(&new_uri).await {
+            if let Ok((vars_obj, pages)) = self.get_json(&new_uri).await {
                 num_pages = pages;
                 if let Some(vec_vars) = vars_obj.as_array() {
                     vec_vars.iter().for_each(|var| {
@@ -97,7 +94,7 @@ impl GitlabJOB {
             let new_uri = format!("{}&page={}", &base_uri, current_page);
             let num_pages;
 
-            if let Some((json, total_pages)) = self.get_json(&new_uri).await {
+            if let Ok((json, total_pages)) = self.get_json(&new_uri).await {
                 num_pages = total_pages;
                 if let Some(vec_json) = json.as_array() {
                     vec_json.iter().for_each(|proj| {

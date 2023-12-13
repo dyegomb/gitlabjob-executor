@@ -53,7 +53,7 @@ impl GitlabJOB {
         match reqwest::Url::parse(&new_uri) {
             Ok(url) => url,
             Err(error) => {
-                error!("Error while parsing url: {}", new_uri);
+                // error!("Error while parsing url: {}", new_uri);
                 panic!("Error while parsing url \"{}\": {}", new_uri, error)
             }
         }
@@ -74,12 +74,11 @@ impl GitlabJOB {
         reqwest::ClientBuilder::new().default_headers(headers)
     }
 
-    pub fn parse_json(text: String) -> Option<Value> {
+    pub fn parse_json(text: String) -> Result<Value, String> {
         if let Ok(parsed_json) = serde_json::from_str::<Value>(&text) {
-            Some(parsed_json)
+            Ok(parsed_json)
         } else {
-            error!("Error while parsing to json from: \n{}", text);
-            None
+            Err(format!("Error while parsing to json from: \n{}", text))
         }
     }
 }

@@ -33,7 +33,7 @@ impl Getjobs<ProjectID, Vec<u64>> for GitlabJOB {
             let parse_json = self.get_json(&new_uri).await;
 
             // map_jobs.insert(project, vec![]);
-            if let Some((json, pages)) = parse_json {
+            if let Ok((json, pages)) = parse_json {
                 num_pages = pages;
                 match json.as_array() {
                     Some(vec_json) => {
@@ -41,7 +41,7 @@ impl Getjobs<ProjectID, Vec<u64>> for GitlabJOB {
                             if let Some(val) = proj["id"].as_u64() {
                                 map_jobs.push(val)
                             } else {
-                                error!("Unable to get jobs for project {}", id.0);
+                                warn!("Unable to get jobs for project {}", id.0);
                             }
                         });
                     }
@@ -114,7 +114,6 @@ impl Getjobs<GroupID, HashMap<u64, Vec<JobInfo>>> for GitlabJOB {
         }
         proj_jobs
     }
-
 }
 
 // /// Scans scoped jobs orderning by project ids.
@@ -172,7 +171,7 @@ impl GetInfo<ProjectID, HashMap<String, String>> for GitlabJOB {
 
         let parse_json = self.get_json(&uri).await;
         let mut hash_map: HashMap<String, String> = HashMap::new();
-        if let Some((json, _)) = parse_json {
+        if let Ok((json, _)) = parse_json {
             if let Some(name) = json["name"].as_str() {
                 hash_map.insert("name".to_owned(), name.to_owned());
             }
@@ -201,7 +200,7 @@ impl GetInfo<(ProjectID, JobID), Option<JobInfo>> for GitlabJOB {
             ..Default::default()
         };
 
-        if let Some((json, _)) = parse_json {
+        if let Ok((json, _)) = parse_json {
             jobinfo.status = json["status"]
                 .as_str()
                 .map(|v| JobScope::from(v.to_owned()));

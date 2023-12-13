@@ -11,12 +11,12 @@ pub use configloader::Config;
 pub const STREAM_BUFF_SIZE: usize = 15;
 
 mod prelude {
-    pub use super::STREAM_BUFF_SIZE;
+    pub use super::jobinfo::{JobInfo, JobScope};
     pub use super::Config;
     pub use super::GitlabJOB;
-    pub use super::jobinfo::{JobInfo, JobScope};
+    pub use super::STREAM_BUFF_SIZE;
     pub use super::{GroupID, JobID, PipelineID, ProjectID};
-    pub use log::{debug, error, warn};
+    pub use log::{debug, warn};
     pub use serde_json::Value;
 }
 
