@@ -63,14 +63,14 @@ impl Getjobs<ProjectID, Vec<u64>> for GitlabJOB {
     }
 }
 
-#[async_trait]
-impl Getjobs<ProjectID, HashMap<u64, Vec<JobInfo>>> for GitlabJOB {
-    type R = HashMap<u64, Vec<JobInfo>>;
+// #[async_trait]
+// impl Getjobs<ProjectID, HashMap<u64, Vec<JobInfo>>> for GitlabJOB {
+//     type R = HashMap<u64, Vec<JobInfo>>;
 
-    async fn get_jobs(&self, id: ProjectID, scope: JobScope) -> Self::R {
-        todo!()
-    }
-}
+//     async fn get_jobs(&self, id: ProjectID, scope: JobScope) -> Self::R {
+//         todo!()
+//     }
+// }
 
 #[async_trait]
 impl Getjobs<GroupID, HashMap<u64, Vec<JobInfo>>> for GitlabJOB {
@@ -79,23 +79,25 @@ impl Getjobs<GroupID, HashMap<u64, Vec<JobInfo>>> for GitlabJOB {
     async fn get_jobs(&self, id: GroupID, scope: JobScope) -> Self::R {
         let projects = self.get_projs(id).await;
 
-        let stream_projects = stream::iter(&projects)
-            .map(|proj| async move { (proj, self.get_proj_jobs(*proj, scope).await) })
+        let stream_projects = stream::iter(projects)
+            .map(|proj| async move { (proj, self.get_jobs(ProjectID(proj), scope).await) })
             .buffer_unordered(STREAM_BUFF_SIZE)
             .fuse();
         tokio::pin!(stream_projects);
 
-        let mut projid_jobid_tuple: Vec<(u64, u64)> = vec![];
+        let mut projid_jobid_tuple: Vec<(ProjectID, JobID)> = vec![];
         while let Some((proj, mut jobs)) = stream_projects.next().await {
+            // let mut jobs = jobs.clone();
             jobs.sort();
             jobs.reverse();
             jobs.iter().for_each(|jobid| {
-                projid_jobid_tuple.push((*proj, *jobid));
+                projid_jobid_tuple.push((ProjectID(proj), JobID(*jobid)));
             });
         }
 
-        let mut stream_jobs = stream::iter(&projid_jobid_tuple)
-            .map(|(projid, jobid)| async move { (projid, self.get_jobinfo(*projid, *jobid).await) })
+        let mut stream_jobs = stream::iter(projid_jobid_tuple)
+            .map(|(projid, jobid)| (projid, jobid))
+            .map(|(projid, jobid)| async move { (projid, self.get_info((projid, jobid)).await) })
             .buffer_unordered(STREAM_BUFF_SIZE)
             .fuse();
 
@@ -103,7 +105,7 @@ impl Getjobs<GroupID, HashMap<u64, Vec<JobInfo>>> for GitlabJOB {
         while let Some((projid, jobinfo)) = stream_jobs.next().await {
             if let Some(jobinfo) = jobinfo {
                 proj_jobs
-                    .entry(*projid)
+                    .entry(projid.0)
                     .and_modify(|jobs| {
                         jobs.push(jobinfo.clone());
                     })
