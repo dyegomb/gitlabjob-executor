@@ -18,3 +18,5 @@ pub async fn mailrelay_buid(config: &Config) -> Option<SmtpTransport> {
         None => None,
     }
 }
+
+// pub fn adjust

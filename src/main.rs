@@ -91,6 +91,6 @@ async fn main() {
         }
     };
 
-    log::info!("Projects with manual/paused jobs: {:?}", jobs.keys());
+    log::info!("Projects with {} status jobs: {:?}", JobScope::Manual, jobs.keys());
 
 }
