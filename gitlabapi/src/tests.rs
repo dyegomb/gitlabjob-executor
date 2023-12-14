@@ -94,8 +94,6 @@ mod test_http {
             .for_each(|job| debug!("Got: {:?}", job));
     }
 
-    // -------------------------------- TESTED
-
     #[tokio::test]
     async fn test_get_job_info() {
         init();
@@ -117,22 +115,26 @@ mod test_http {
         debug!("Job informations: {:?}", jobinfo);
     }
 
-    // #[tokio::test]
-    // #[ignore = "specific job"]
-    // async fn test_get_specif_job() {
-    //     init();
+    #[tokio::test]
+    #[ignore = "get infos form a specific job"]
+    async fn test_get_specif_job() {
+        init();
 
-    //     let config = Config::load_config().unwrap();
+        let config = Config::load_config().unwrap();
 
-    //     let api = GitlabJOB::new(&config);
+        let api = GitlabJOB::new(&config);
 
-    //     let specify_project = 518_u64;
-    //     let specify_job = 20548_u64;
+        // let specify_project = 518_u64;
+        // let specify_job = 20548_u64;
+        let specify_project = 45307263_u64;
+        let specify_job = 4149305002_u64;
 
-    //     let jobinfo = api.get_jobinfo(specify_project, specify_job).await;
+        let jobinfo = api
+            .get_info((ProjectID(specify_project), JobID(specify_job)))
+            .await;
 
-    //     debug!("Got JobInfo: {:?}", jobinfo);
-    // }
+        debug!("Got JobInfo: {:?}", jobinfo);
+    }
 
     // #[tokio::test]
     // #[ignore = "It'll cancel a specific job"]
@@ -177,47 +179,29 @@ mod test_http {
     //     debug!("Job played: {}", specify_job);
     // }
 
-    // #[tokio::test]
-    // #[ignore = "Specif job"]
-    // async fn test_new_job_status() {
-    //     init();
+    #[tokio::test]
+    async fn test_jobs_by_proj() {
+        init();
 
-    //     let config = Config::load_config().unwrap();
+        let config = Config::load_config().unwrap();
 
-    //     let api = GitlabJOB::new(&config);
+        let api = GitlabJOB::new(&config);
+        let projid = 45307263;
 
-    //     let specify_project = 306_u64;
-    //     let specify_job = 20752_u64;
+        let output = api.get_jobs(ProjectID(projid), JobScope::Success).await;
+        let mut total_jobs = 0;
 
-    //     let jobinfo = api.get_jobinfo(specify_project, specify_job).await;
+        output.iter().for_each(|(projid, jobinfo)| {
+            debug!("************************\nGot Project: {}", projid);
+            jobinfo.iter().for_each(|job| {
+                total_jobs += 1;
+                debug!("=================\n{:?}", job);
+            });
+        });
 
-    //     debug!(
-    //         "Job last status: {}",
-    //         api.get_new_job_status(&jobinfo.unwrap()).await.unwrap()
-    //     );
-    // }
-    // #[tokio::test]
-    // async fn test_jobs_by_proj() {
-    //     init();
-
-    //     let config = Config::load_config().unwrap();
-
-    //     let api = GitlabJOB::new(&config);
-
-    //     let output = api.get_jobs_by_project(JobScope::Manual).await;
-    //     let mut total_jobs = 0;
-
-    //     output.iter().for_each(|(projid, jobinfo)| {
-    //         debug!("************************\nGot Project: {}", projid);
-    //         jobinfo.iter().for_each(|job| {
-    //             total_jobs += 1;
-    //             debug!("=================\n{:?}", job);
-    //         });
-    //     });
-
-    //     debug!("Got projects: {:?}", output.keys().len());
-    //     debug!("Total jobs: {}", total_jobs);
-    // }
+        debug!("Got projects: {:?}", output.keys().len());
+        debug!("Total jobs: {}", total_jobs);
+    }
 
     // #[tokio::test]
     // async fn test_get_all() {
