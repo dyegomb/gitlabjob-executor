@@ -5,7 +5,6 @@ use futures::join;
 use futures::stream::{self, StreamExt};
 
 use crate::prelude::*;
-// use crate::getters::*;
 
 #[async_trait]
 pub trait Getjobs<T, R> {
@@ -143,7 +142,6 @@ impl GetInfo<(ProjectID, JobID), Result<JobInfo, String>> for GitlabJOB {
 
         let uri = format!("/api/v4/projects/{}/jobs/{}", projid.0, jobid.0);
 
-        // let (parse_json, project_infos) = join!(self.get_json(&uri), self.get_proj_info(projid));
         let (parse_json, project_infos) = join!(self.get_json(&uri), self.get_info(projid));
 
         let mut jobinfo = JobInfo {

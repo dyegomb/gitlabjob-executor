@@ -5,9 +5,9 @@
 // extern crate toml;
 mod smtpconfig;
 
-use serde::Deserialize;
+use log::{debug, error};
 use merge::Merge;
-use log::{error,debug};
+use serde::Deserialize;
 pub use smtpconfig::SmtpConfig;
 
 pub mod prelude {

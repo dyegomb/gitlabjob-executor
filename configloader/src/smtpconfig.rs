@@ -1,6 +1,6 @@
+use lettre::message::Mailboxes;
 use merge::Merge;
 use serde::Deserialize;
-use lettre::message::Mailboxes;
 
 // use crate::prelude::*;
 
@@ -16,7 +16,6 @@ pub struct SmtpConfig {
 }
 
 impl SmtpConfig {
-
     /// Validates  head mail fields
     pub fn is_valid(&self) -> bool {
         let addresses = match &self.to {
