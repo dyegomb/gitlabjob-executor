@@ -57,6 +57,22 @@ mod test_http {
     }
 
     #[tokio::test]
+    async fn test_get_group_jobs() {
+        init();
+
+        let config = Config::load_config().unwrap();
+
+        let gitlabjob = GitlabJOB::new(&config);
+        let groupid = gitlabjob.config.group_id.unwrap();
+
+        let response = gitlabjob.get_jobs(GroupID(groupid), JobScope::Canceled).await;
+
+        response
+            .iter()
+            .for_each(|proj| debug!("Got project: {:?}", proj));
+    }
+
+    #[tokio::test]
     #[ignore = "specific group"]
     async fn test_get_specifc_group_projects() {
         init();

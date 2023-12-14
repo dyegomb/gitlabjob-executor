@@ -36,10 +36,10 @@ impl GitlabJOB {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct GroupID(u64);
+pub struct GroupID(pub u64);
 #[derive(Debug, Clone, Copy)]
-pub struct ProjectID(u64);
+pub struct ProjectID(pub u64);
 #[derive(Debug, Clone, Copy)]
-pub struct JobID(u64);
+pub struct JobID(pub u64);
 #[derive(Debug, Clone, Copy)]
-pub struct PipelineID(u64);
+pub struct PipelineID(pub u64);
