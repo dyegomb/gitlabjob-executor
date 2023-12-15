@@ -75,7 +75,7 @@ async fn main() {
         Err(err) => panic!("Error loading configurations. {}", err),
     };
 
-    let mail_relay = utils::mailrelay_buid(&config).await;
+    let mail_relay_handle = tokio::spawn(utils::mailrelay_buid(config.clone()));
 
     // Scan projects for Manual jobs
     let api = GitlabJOB::new(&config);
@@ -96,4 +96,9 @@ async fn main() {
         JobScope::Manual,
         jobs.keys()
     );
+
+    let mail_relay = match mail_relay_handle.await {
+        Ok(relay) => relay,
+        Err(_) => None,
+    };
 }

@@ -43,5 +43,5 @@ pub struct GroupID(pub ID);
 pub struct ProjectID(pub ID);
 #[derive(Debug, Clone, Copy)]
 pub struct JobID(pub ID);
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct PipelineID(pub ID);

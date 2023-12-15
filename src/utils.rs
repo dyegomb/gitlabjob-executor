@@ -7,10 +7,10 @@ use crate::Config;
 use log::error;
 
 /// Build the mail relay
-pub async fn mailrelay_buid(config: &Config) -> Option<SmtpTransport> {
+pub async fn mailrelay_buid(config: Config) -> Option<SmtpTransport> {
     match &config.smtp {
         Some(smtp) => match smtp.is_valid() {
-            true => match MailSender::try_new(smtp.clone()).await {
+            true => match MailSender::try_new(smtp.to_owned()).await {
                 Ok(mailer) => mailer.relay,
                 Err(error) => {
                     error!("{}", error);
@@ -23,18 +23,20 @@ pub async fn mailrelay_buid(config: &Config) -> Option<SmtpTransport> {
     }
 }
 
-/// Reorder got jobs by Project id and Pipeline id
+/// Reorder got jobs by Project id and Pipeline id skipping the first pipeline
 pub fn pipelines_tocancel(
     jobs: &HashMap<ProjectID, HashSet<JobInfo>>,
 ) -> Vec<(ProjectID, Vec<PipelineID>)> {
     jobs.iter()
         .map(|(proj, jobs)| {
-            (
-                *proj,
-                jobs.iter()
+            (*proj, {
+                let mut temp = jobs
+                    .iter()
                     .map(|job| PipelineID(job.pipeline_id.unwrap()))
-                    .collect::<Vec<PipelineID>>(),
-            )
+                    .collect::<Vec<PipelineID>>();
+                temp.sort();
+                temp.into_iter().skip(1).collect()
+            })
         })
         .collect()
 }
