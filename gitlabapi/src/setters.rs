@@ -23,31 +23,36 @@ impl GitlabJOB {
 }
 
 #[async_trait]
-trait JobActions {
-    async fn cancel_job(&self, job: &JobInfo) -> Result<(), String>;
-    async fn play_job(&self, job: &JobInfo) -> Result<(), String>;
+pub trait JobActions<'a> {
+    async fn cancel_job(&self, job: &'a JobInfo) -> Result<&'a JobInfo, String>;
+    async fn play_job(&self, job: &'a JobInfo) -> Result<&'a JobInfo, String>;
 }
 
 #[async_trait]
-impl JobActions for GitlabJOB {
-    async fn cancel_job(&self, job: &JobInfo) -> Result<(), String> {
-        todo!()
+impl<'a> JobActions<'a> for GitlabJOB {
+    async fn cancel_job(&self, job: &'a JobInfo) -> Result<&'a JobInfo, String> {
+        let url = format!(
+            "api/v4/projects/{}/jobs/{}/cancel",
+            job.proj_id.unwrap(),
+            job.id.unwrap()
+        );
+
+        match self.post_json(url, Value::String("".to_owned())).await {
+            Ok(_) => Ok(job),
+            Err(e) => Err(format!("Error to cancel job {job}: {e}")),
+        }
     }
 
-    async fn play_job(&self, job: &JobInfo) -> Result<(), String> {
+    async fn play_job(&self, job: &'a JobInfo) -> Result<&'a JobInfo, String> {
         let url = format!(
             "api/v4/projects/{}/jobs/{}/play",
             job.proj_id.unwrap(),
             job.id.unwrap()
         );
 
-        let resp = self.post_json(url, Value::String("".to_owned()));
-
-        if let Ok(response) = resp.await {
-            debug!("Job played: {:?}", response);
-            return Ok(());
+        match self.post_json(url, Value::String("".to_owned())).await {
+            Ok(_) => Ok(job),
+            Err(e) => Err(format!("Error to play job {job}: {e}")),
         }
-
-        Err(format!("Couldn't play job {:?}", job))
     }
 }

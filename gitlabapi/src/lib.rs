@@ -3,7 +3,7 @@
 mod getters;
 mod getters_traits;
 mod jobinfo;
-mod setters;
+pub mod setters;
 mod tests;
 mod utils;
 
@@ -15,6 +15,7 @@ pub const STREAM_BUFF_SIZE: usize = 15;
 pub mod prelude {
     pub use super::getters_traits::*;
     pub use super::jobinfo::{JobInfo, JobScope};
+    pub use super::setters;
     pub use super::Config;
     pub use super::GitlabJOB;
     pub use super::STREAM_BUFF_SIZE;

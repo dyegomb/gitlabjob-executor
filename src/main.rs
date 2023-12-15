@@ -40,12 +40,14 @@
 
 // /// Module to support mail reports
 // mod mailsender;
-
+use futures::stream::{self, StreamExt};
+use log::error;
 use std::collections::{HashMap, HashSet};
 use tokio::time as tktime;
+// use tokio_stream::StreamExt;
 
 use configloader::prelude::*;
-use gitlabapi::prelude::*;
+use gitlabapi::{prelude::*, setters::JobActions};
 
 mod tests;
 mod utils;
@@ -68,7 +70,7 @@ enum MailReason {
 
 #[tokio::main]
 async fn main() {
-    // Set default log level for INFO, changed with "RUST_LOG"
+    // Set default log level for INFO, changed with "RUST_LOG" environment variable
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     let config = match Config::load_config() {
@@ -82,7 +84,7 @@ async fn main() {
     let api = GitlabJOB::new(&config);
     let mut playable_jobs: HashSet<&JobInfo> = HashSet::new();
     let mut cancel_jobs: HashSet<&JobInfo> = HashSet::new();
-    let mut mail_jobs_list: Vec<(&JobInfo, MailReason)> = vec![];
+    let mut mail_jobs_list: Vec<(Option<&JobInfo>, MailReason)> = vec![];
 
     let proj_jobs = match config.group_id {
         Some(group_id) => api.get_jobs(GroupID(group_id), JobScope::Manual).await,
@@ -110,8 +112,14 @@ async fn main() {
                         .unwrap()
                         .contains(&PipelineID(pipe_id))
                     {
-                        true => cancel_jobs.insert(job),
-                        false => playable_jobs.insert(job),
+                        true => {
+                            cancel_jobs.insert(job);
+                        }
+                        false => {
+                            if job.git_tag.is_some() && job.source_id.is_some() {
+                                playable_jobs.insert(job);
+                            }
+                        }
                     };
                 }
                 None => {
@@ -123,8 +131,30 @@ async fn main() {
     }
 
     // Cancel jobs
+    let stream_cancel = stream::iter(cancel_jobs)
+        .map(|job| api.cancel_job(job))
+        .buffer_unordered(STREAM_BUFF_SIZE)
+        .fuse();
+    tokio::pin!(stream_cancel);
+
+    while let Some(job_result) = stream_cancel.next().await {
+        match job_result {
+            Ok(job) => {
+                mail_jobs_list.push((Some(job), MailReason::Duplicated));
+            }
+            Err(e) => {
+                error!("Error to cancel job: {}", e);
+                mail_jobs_list.push((None, MailReason::ErrorToCancel))
+            }
+        }
+    }
 
     // Play jobs
+    let stream_play = stream::iter(playable_jobs)
+        .map(|job| api.play_job(job))
+        .buffer_unordered(STREAM_BUFF_SIZE)
+        .fuse();
+    tokio::pin!(stream_play);
 
     let mail_relay = match mail_relay_handle.await {
         Ok(relay) => relay,
