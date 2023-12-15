@@ -81,4 +81,12 @@ impl GitlabJOB {
             Err(format!("Error while parsing to json from: \n{}", text))
         }
     }
+
+    pub fn api_post(&self, url: &str, json: Value) -> reqwest::RequestBuilder {
+        // let post_json = serde_json::json!(form);
+
+        debug!("Post JSON: {}", json);
+
+        self.api_caller(url, HttpMethod::Post).json(&json)
+    }
 }

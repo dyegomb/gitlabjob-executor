@@ -26,7 +26,8 @@ pub async fn mailrelay_buid(config: Config) -> Option<SmtpTransport> {
 /// Reorder got jobs by Project id and Pipeline id skipping the first pipeline
 pub fn pipelines_tocancel(
     jobs: &HashMap<ProjectID, HashSet<JobInfo>>,
-) -> Vec<(ProjectID, Vec<PipelineID>)> {
+) -> HashMap<ProjectID, Vec<PipelineID>> {
+    let mut pipelines_tocancel = HashMap::new();
     jobs.iter()
         .map(|(proj, jobs)| {
             (*proj, {
@@ -35,8 +36,13 @@ pub fn pipelines_tocancel(
                     .map(|job| PipelineID(job.pipeline_id.unwrap()))
                     .collect::<Vec<PipelineID>>();
                 temp.sort();
-                temp.into_iter().skip(1).collect()
+                temp.into_iter().skip(1).collect::<Vec<PipelineID>>()
             })
         })
-        .collect()
+        .for_each(|(key, vec)| {
+            pipelines_tocancel.entry(key).or_insert(vec);
+        });
+    // .collect()
+
+    pipelines_tocancel
 }

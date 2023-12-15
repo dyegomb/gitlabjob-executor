@@ -41,12 +41,13 @@
 // /// Module to support mail reports
 // mod mailsender;
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use tokio::time as tktime;
 
 use configloader::prelude::*;
 use gitlabapi::prelude::*;
 
+mod tests;
 mod utils;
 
 /// Just a generic Result type to ease error handling for us. Errors in multithreaded
@@ -83,7 +84,7 @@ async fn main() {
     let mut cancel_jobs: HashSet<&JobInfo> = HashSet::new();
     let mut mail_jobs_list: Vec<(&JobInfo, MailReason)> = vec![];
 
-    let jobs = match config.group_id {
+    let proj_jobs = match config.group_id {
         Some(group_id) => api.get_jobs(GroupID(group_id), JobScope::Manual).await,
         None => match config.project_id {
             Some(proj_id) => api.get_jobs(ProjectID(proj_id), JobScope::Manual).await,
@@ -94,11 +95,42 @@ async fn main() {
     log::info!(
         "Projects with {} status jobs: {:?}",
         JobScope::Manual,
-        jobs.keys()
+        proj_jobs.keys()
     );
+
+    let pipelines_tocancel = utils::pipelines_tocancel(&proj_jobs);
+
+    // Classify jobs
+    for (project, jobs) in &proj_jobs {
+        for job in jobs {
+            match job.pipeline_id {
+                Some(pipe_id) => {
+                    match pipelines_tocancel
+                        .get(project)
+                        .unwrap()
+                        .contains(&PipelineID(pipe_id))
+                    {
+                        true => cancel_jobs.insert(job),
+                        false => playable_jobs.insert(job),
+                    };
+                }
+                None => {
+                    warn!("A job without pipeline {}", job);
+                    cancel_jobs.insert(job);
+                }
+            }
+        }
+    }
+
+    // Cancel jobs
+
+    // Play jobs
 
     let mail_relay = match mail_relay_handle.await {
         Ok(relay) => relay,
-        Err(_) => None,
+        Err(e) => {
+            warn!("No email will be sent. {}", e);
+            None
+        }
     };
 }

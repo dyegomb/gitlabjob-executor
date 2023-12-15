@@ -3,6 +3,7 @@
 mod getters;
 mod getters_traits;
 mod jobinfo;
+mod setters;
 mod tests;
 mod utils;
 
