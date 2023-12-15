@@ -87,10 +87,13 @@ async fn main() {
         Some(group_id) => api.get_jobs(GroupID(group_id), JobScope::Manual).await,
         None => match config.project_id {
             Some(proj_id) => api.get_jobs(ProjectID(proj_id), JobScope::Manual).await,
-            None => panic!("There's no project to scan for jobs.")
-        }
+            None => panic!("There's no project to scan for jobs."),
+        },
     };
 
-    log::info!("Projects with {} status jobs: {:?}", JobScope::Manual, jobs.keys());
-
+    log::info!(
+        "Projects with {} status jobs: {:?}",
+        JobScope::Manual,
+        jobs.keys()
+    );
 }

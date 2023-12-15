@@ -27,6 +27,8 @@ pub struct GitlabJOB {
     pub config: Config,
 }
 
+type ID = u64;
+
 impl GitlabJOB {
     pub fn new(config: &Config) -> Self {
         GitlabJOB {
@@ -36,10 +38,10 @@ impl GitlabJOB {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct GroupID(pub u64);
+pub struct GroupID(pub ID);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ProjectID(pub ID);
 #[derive(Debug, Clone, Copy)]
-pub struct ProjectID(pub u64);
+pub struct JobID(pub ID);
 #[derive(Debug, Clone, Copy)]
-pub struct JobID(pub u64);
-#[derive(Debug, Clone, Copy)]
-pub struct PipelineID(pub u64);
+pub struct PipelineID(pub ID);

@@ -65,7 +65,9 @@ mod test_http {
         let gitlabjob = GitlabJOB::new(&config);
         let groupid = gitlabjob.config.group_id.unwrap();
 
-        let response = gitlabjob.get_jobs(GroupID(groupid), JobScope::Canceled).await;
+        let response = gitlabjob
+            .get_jobs(GroupID(groupid), JobScope::Canceled)
+            .await;
 
         response
             .iter()
@@ -122,10 +124,17 @@ mod test_http {
             .get_jobs(ProjectID(config.project_id.unwrap()), JobScope::Canceled)
             .await;
 
-        let job_test = response.keys().next().unwrap();
+        let job_test = response
+            .values()
+            .next()
+            .map(|jobs| jobs.iter().next().unwrap())
+            .unwrap();
 
         let jobinfo = api
-            .get_info((ProjectID(config.project_id.unwrap()), JobID(*job_test)))
+            .get_info((
+                ProjectID(config.project_id.unwrap()),
+                JobID(job_test.id.unwrap()),
+            ))
             .await;
 
         debug!("Job informations: {:?}", jobinfo);
@@ -208,7 +217,7 @@ mod test_http {
         let mut total_jobs = 0;
 
         output.iter().for_each(|(projid, jobinfo)| {
-            debug!("************************\nGot Project: {}", projid);
+            debug!("************************\nGot Project: {}", projid.0);
             jobinfo.iter().for_each(|job| {
                 total_jobs += 1;
                 debug!("=================\n{:?}", job);

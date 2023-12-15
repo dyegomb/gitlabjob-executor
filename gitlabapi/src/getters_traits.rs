@@ -13,8 +13,8 @@ pub trait Getjobs<T, R> {
 }
 
 #[async_trait]
-impl Getjobs<ProjectID, HashMap<u64, HashSet<JobInfo>>> for GitlabJOB {
-    type R = HashMap<u64, HashSet<JobInfo>>;
+impl Getjobs<ProjectID, HashMap<ProjectID, HashSet<JobInfo>>> for GitlabJOB {
+    type R = HashMap<ProjectID, HashSet<JobInfo>>;
     async fn get_jobs(&self, id: ProjectID, scope: JobScope) -> Self::R {
         let uri = format!(
             "/api/v4/projects/{}/jobs?per_page=100&order_by=id&sort=asc&scope={}",
@@ -66,11 +66,11 @@ impl Getjobs<ProjectID, HashMap<u64, HashSet<JobInfo>>> for GitlabJOB {
             .buffer_unordered(STREAM_BUFF_SIZE)
             .fuse();
 
-        let mut proj_jobs: HashMap<u64, HashSet<JobInfo>> = HashMap::new();
+        let mut proj_jobs: HashMap<ProjectID, HashSet<JobInfo>> = HashMap::new();
         while let Some((projid, jobinfo)) = stream_jobs.next().await {
             if let Ok(jobinfo) = jobinfo {
                 proj_jobs
-                    .entry(projid.0)
+                    .entry(projid)
                     .and_modify(|jobs| {
                         jobs.insert(jobinfo.clone());
                     })
@@ -84,8 +84,8 @@ impl Getjobs<ProjectID, HashMap<u64, HashSet<JobInfo>>> for GitlabJOB {
 
 /// Scans scoped jobs orderning by project ids.
 #[async_trait]
-impl Getjobs<GroupID, HashMap<u64, HashSet<JobInfo>>> for GitlabJOB {
-    type R = HashMap<u64, HashSet<JobInfo>>;
+impl Getjobs<GroupID, HashMap<ProjectID, HashSet<JobInfo>>> for GitlabJOB {
+    type R = HashMap<ProjectID, HashSet<JobInfo>>;
 
     async fn get_jobs(&self, id: GroupID, scope: JobScope) -> Self::R {
         let projects = self.get_projs(id).await;
