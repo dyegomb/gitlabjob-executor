@@ -51,15 +51,25 @@ impl From<String> for JobScope {
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Default)]
 pub struct JobInfo {
+    /// ID of the JOB
     pub id: Option<u64>,
+    /// Job Status
     pub status: Option<JobScope>,
+    /// URL to access jog page
     pub url: Option<String>,
+    /// Name of job project
     pub proj_name: Option<String>,
+    /// ID from the job project
     pub proj_id: Option<u64>,
+    /// ID from the job pipeline
     pub pipeline_id: Option<u64>,
+    /// ID from the source project
     pub source_id: Option<u64>,
+    /// Mail of trigger user
     pub user_mail: Option<String>,
+    /// Branch from the source project
     pub branch: Option<String>,
+    /// Git tag to deploy
     pub git_tag: Option<String>,
 }
 

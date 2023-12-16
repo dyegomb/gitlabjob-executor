@@ -117,6 +117,9 @@ async fn main() {
                         }
                         false => {
                             if job.git_tag.is_some() && job.source_id.is_some() {
+                                // playable_jobs.insert(job);
+                                let tags = api.get_tags(ProjectID(job.source_id.unwrap())).await;
+                            } else {
                                 playable_jobs.insert(job);
                             }
                         }
@@ -156,11 +159,16 @@ async fn main() {
         .fuse();
     tokio::pin!(stream_play);
 
+    while let Some(job_result) = stream_play.next().await {
+
+    }
+
     let mail_relay = match mail_relay_handle.await {
         Ok(relay) => relay,
         Err(e) => {
             warn!("No email will be sent. {}", e);
             None
         }
+
     };
 }

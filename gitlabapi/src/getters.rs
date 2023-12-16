@@ -115,4 +115,24 @@ impl GitlabJOB {
 
         vec_projs
     }
+
+
+    /// Inspect a project for its git tags.
+    pub async fn get_tags(&self, id: ProjectID) -> Vec<String> {
+        let url = format!("api/v4/projects/{}/repository/tags?order_by=updated", id.0);
+
+        let mut got_tags = vec![];
+
+        if let Ok((resp, _)) = self.get_json(&url).await {
+            if let Some(tags_list) = resp.as_array() {
+                tags_list.iter().for_each(|tag| {
+                    if let Some(tag_name) = tag["name"].as_str() {
+                        got_tags.push(tag_name.to_owned())
+                    }
+                })
+            }
+        }
+
+        got_tags
+    }
 }

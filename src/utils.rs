@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use gitlabapi::{prelude::JobInfo, PipelineID, ProjectID};
+use gitlabapi::{prelude::JobInfo, GitlabJOB, PipelineID, ProjectID};
 use mailsender::prelude::{MailSender, SmtpTransport};
 
 use crate::Config;
@@ -45,4 +45,12 @@ pub fn pipelines_tocancel(
     // .collect()
 
     pipelines_tocancel
+}
+
+pub async fn validate_job<'a>(
+    job: &'a JobInfo,
+    cancel_pipelines: &HashMap<&ProjectID, Vec<PipelineID>>,
+    source_tags: Vec<String>,
+) -> (bool, &'a JobInfo) {
+    todo!()
 }
