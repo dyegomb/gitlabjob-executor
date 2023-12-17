@@ -116,7 +116,6 @@ impl GitlabJOB {
         vec_projs
     }
 
-
     /// Inspect a project for its git tags.
     pub async fn get_tags(&self, id: ProjectID) -> Vec<String> {
         let url = format!("api/v4/projects/{}/repository/tags?order_by=updated", id.0);

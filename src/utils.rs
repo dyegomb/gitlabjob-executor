@@ -47,10 +47,19 @@ pub fn pipelines_tocancel(
     pipelines_tocancel
 }
 
-pub async fn validate_job<'a>(
-    job: &'a JobInfo,
-    cancel_pipelines: &HashMap<&ProjectID, Vec<PipelineID>>,
-    source_tags: Vec<String>,
-) -> (bool, &'a JobInfo) {
-    todo!()
+pub async fn validate_jobs<'a>(
+    api: &GitlabJOB,
+    proj_jobs: &'a HashMap<ProjectID, HashSet<JobInfo>>,
+    // pipelines_tocancel: &HashMap<&ProjectID, Vec<PipelineID>>,
+    // source_tags: &Vec<String>,
+) -> Vec<(bool, &'a JobInfo)> {
+
+    let pepilines_tocancel = pipelines_tocancel(proj_jobs);
+    let checked_jobs = vec![];
+
+    for (proj, jobs) in proj_jobs {
+        
+    }
+
+    checked_jobs
 }

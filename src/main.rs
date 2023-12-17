@@ -82,8 +82,8 @@ async fn main() {
 
     // Scan projects for Manual jobs
     let api = GitlabJOB::new(&config);
-    let mut playable_jobs: HashSet<&JobInfo> = HashSet::new();
-    let mut cancel_jobs: HashSet<&JobInfo> = HashSet::new();
+    // let mut playable_jobs: HashSet<&JobInfo> = HashSet::new();
+    // let mut cancel_jobs: HashSet<&JobInfo> = HashSet::new();
     let mut mail_jobs_list: Vec<(Option<&JobInfo>, MailReason)> = vec![];
 
     let proj_jobs = match config.group_id {
@@ -100,68 +100,66 @@ async fn main() {
         proj_jobs.keys()
     );
 
-    let pipelines_tocancel = utils::pipelines_tocancel(&proj_jobs);
+    // let pipelines_tocancel = utils::pipelines_tocancel(&proj_jobs);
 
     // Classify jobs
-    for (project, jobs) in &proj_jobs {
-        for job in jobs {
-            match job.pipeline_id {
-                Some(pipe_id) => {
-                    match pipelines_tocancel
-                        .get(project)
-                        .unwrap()
-                        .contains(&PipelineID(pipe_id))
-                    {
-                        true => {
-                            cancel_jobs.insert(job);
-                        }
-                        false => {
-                            if job.git_tag.is_some() && job.source_id.is_some() {
-                                // playable_jobs.insert(job);
-                                let tags = api.get_tags(ProjectID(job.source_id.unwrap())).await;
-                            } else {
-                                playable_jobs.insert(job);
-                            }
-                        }
-                    };
-                }
-                None => {
-                    warn!("A job without pipeline {}", job);
-                    cancel_jobs.insert(job);
-                }
-            }
-        }
-    }
+    // for (project, jobs) in &proj_jobs {
+    //     for job in jobs {
+    //         match job.pipeline_id {
+    //             Some(pipe_id) => {
+    //                 match pipelines_tocancel
+    //                     .get(project)
+    //                     .unwrap()
+    //                     .contains(&PipelineID(pipe_id))
+    //                 {
+    //                     true => {
+    //                         cancel_jobs.insert(job);
+    //                     }
+    //                     false => {
+    //                         if job.git_tag.is_some() && job.source_id.is_some() {
+    //                             // playable_jobs.insert(job);
+    //                             let tags = api.get_tags(ProjectID(job.source_id.unwrap())).await;
+    //                         } else {
+    //                             playable_jobs.insert(job);
+    //                         }
+    //                     }
+    //                 };
+    //             }
+    //             None => {
+    //                 warn!("A job without pipeline {}", job);
+    //                 cancel_jobs.insert(job);
+    //             }
+    //         }
+    //     }
+    // }
 
-    // Cancel jobs
-    let stream_cancel = stream::iter(cancel_jobs)
-        .map(|job| api.cancel_job(job))
-        .buffer_unordered(STREAM_BUFF_SIZE)
-        .fuse();
-    tokio::pin!(stream_cancel);
+    // // Cancel jobs
+    // let stream_cancel = stream::iter(cancel_jobs)
+    //     .map(|job| api.cancel_job(job))
+    //     .buffer_unordered(STREAM_BUFF_SIZE)
+    //     .fuse();
+    // tokio::pin!(stream_cancel);
 
-    while let Some(job_result) = stream_cancel.next().await {
-        match job_result {
-            Ok(job) => {
-                mail_jobs_list.push((Some(job), MailReason::Duplicated));
-            }
-            Err(e) => {
-                error!("Error to cancel job: {}", e);
-                mail_jobs_list.push((None, MailReason::ErrorToCancel))
-            }
-        }
-    }
+    // while let Some(job_result) = stream_cancel.next().await {
+    //     match job_result {
+    //         Ok(job) => {
+    //             mail_jobs_list.push((Some(job), MailReason::Duplicated));
+    //         }
+    //         Err(e) => {
+    //             error!("Error to cancel job: {}", e);
+    //             mail_jobs_list.push((None, MailReason::ErrorToCancel))
+    //         }
+    //     }
+    // }
 
-    // Play jobs
-    let stream_play = stream::iter(playable_jobs)
-        .map(|job| api.play_job(job))
-        .buffer_unordered(STREAM_BUFF_SIZE)
-        .fuse();
-    tokio::pin!(stream_play);
+    // // Play jobs
+    // let stream_play = stream::iter(playable_jobs)
+    //     .map(|job| api.play_job(job))
+    //     .buffer_unordered(STREAM_BUFF_SIZE)
+    //     .fuse();
+    // tokio::pin!(stream_play);
 
-    while let Some(job_result) = stream_play.next().await {
-
-    }
+    // while let Some(job_result) = stream_play.next().await {}
 
     let mail_relay = match mail_relay_handle.await {
         Ok(relay) => relay,
@@ -169,6 +167,5 @@ async fn main() {
             warn!("No email will be sent. {}", e);
             None
         }
-
     };
 }
