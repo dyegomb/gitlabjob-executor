@@ -28,11 +28,11 @@ mod integration_tests {
 
         debug!("Got {} projects", response.values().len());
         let to_cancel = utils::pipelines_tocancel(&response);
-        to_cancel.iter().for_each(|(proj, jobs)| {
+        to_cancel.iter().for_each(|(proj, pipes)| {
             debug!(
                 "For project {}, {} pipelines will be canceled",
                 proj.0,
-                jobs.len()
+                pipes.len()
             )
         });
         debug!("{:?}", to_cancel);

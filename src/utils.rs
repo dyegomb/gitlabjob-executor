@@ -4,7 +4,7 @@ use gitlabapi::{prelude::JobInfo, GitlabJOB, PipelineID, ProjectID};
 use mailsender::prelude::{MailSender, SmtpTransport};
 
 use crate::Config;
-use log::error;
+use log::{error, warn};
 
 /// Build the mail relay
 pub async fn mailrelay_buid(config: Config) -> Option<SmtpTransport> {
@@ -42,7 +42,6 @@ pub fn pipelines_tocancel(
         .for_each(|(key, vec)| {
             pipelines_tocancel.entry(key).or_insert(vec);
         });
-    // .collect()
 
     pipelines_tocancel
 }
@@ -54,11 +53,37 @@ pub async fn validate_jobs<'a>(
     // source_tags: &Vec<String>,
 ) -> Vec<(bool, &'a JobInfo)> {
 
-    let pepilines_tocancel = pipelines_tocancel(proj_jobs);
-    let checked_jobs = vec![];
+    let pipes_tocancel = pipelines_tocancel(proj_jobs);
+    let mut checked_jobs = vec![];
 
     for (proj, jobs) in proj_jobs {
-        
+        for job in jobs {
+            if pipes_tocancel.get(proj).unwrap().contains(&PipelineID(job.pipeline_id.unwrap())) {
+                warn!("The job {} will be canceled due to duplicated pipelines", job);
+                checked_jobs.push((false, job));
+                continue;
+            } 
+            match (job.source_id, &job.git_tag) {
+                (None, None) => checked_jobs.push((true, job)),
+                (None, Some(tag)) => {
+                    let proj_tags = api.get_tags(*proj).await;
+                    if proj_tags.contains(tag) {
+                        checked_jobs.push((true, job));
+                    } else {
+                        checked_jobs.push((false, job));
+                    }
+                },
+                (Some(source_proj), Some(tag)) => {
+                    let proj_tags = api.get_tags(ProjectID(source_proj)).await;
+                    if proj_tags.contains(tag) {
+                        checked_jobs.push((true, job));
+                    } else {
+                        checked_jobs.push((false, job));
+                    }
+                },
+                (Some(_), None) => checked_jobs.push((true, job)),
+            }
+        }
     }
 
     checked_jobs
