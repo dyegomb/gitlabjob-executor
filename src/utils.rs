@@ -71,6 +71,7 @@ pub async fn validate_jobs<'a>(
                         checked_jobs.push((true, job));
                     } else {
                         checked_jobs.push((false, job));
+                        warn!("The job {} will be cancelled due to invalid tag.", job);
                     }
                 },
                 (Some(source_proj), Some(tag)) => {
@@ -79,6 +80,7 @@ pub async fn validate_jobs<'a>(
                         checked_jobs.push((true, job));
                     } else {
                         checked_jobs.push((false, job));
+                        warn!("The job {} will be cancelled due to invalid tag.", job);
                     }
                 },
                 (Some(_), None) => checked_jobs.push((true, job)),
