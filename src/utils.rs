@@ -1,9 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
-use gitlabapi::{prelude::JobInfo, GitlabJOB, PipelineID, ProjectID};
-use mailsender::prelude::{MailSender, SmtpTransport};
+use gitlabapi::prelude::*;
+use mailsender::prelude::*;
 
-use crate::Config;
+use crate::{Config, MailReason};
 use log::{error, warn};
 
 /// Build the mail relay
@@ -51,7 +51,7 @@ pub async fn validate_jobs<'a>(
     proj_jobs: &'a HashMap<ProjectID, HashSet<JobInfo>>,
     // pipelines_tocancel: &HashMap<&ProjectID, Vec<PipelineID>>,
     // source_tags: &Vec<String>,
-) -> Vec<(bool, &'a JobInfo)> {
+) -> Vec<(bool, &'a JobInfo, Option<MailReason>)> {
 
     let pipes_tocancel = pipelines_tocancel(proj_jobs);
     let mut checked_jobs = vec![];
@@ -60,30 +60,30 @@ pub async fn validate_jobs<'a>(
         for job in jobs {
             if pipes_tocancel.get(proj).unwrap().contains(&PipelineID(job.pipeline_id.unwrap())) {
                 warn!("The job {} will be canceled due to duplicated pipelines", job);
-                checked_jobs.push((false, job));
+                checked_jobs.push((false, job, Some(MailReason::Duplicated)));
                 continue;
             } 
             match (job.source_id, &job.git_tag) {
-                (None, None) => checked_jobs.push((true, job)),
+                (None, None) => checked_jobs.push((true, job, None)),
                 (None, Some(tag)) => {
                     let proj_tags = api.get_tags(*proj).await;
                     if proj_tags.contains(tag) {
-                        checked_jobs.push((true, job));
+                        checked_jobs.push((true, job, None));
                     } else {
-                        checked_jobs.push((false, job));
+                        checked_jobs.push((false, job, Some(MailReason::InvalidTag)));
                         warn!("The job {} will be cancelled due to invalid tag.", job);
                     }
                 },
                 (Some(source_proj), Some(tag)) => {
                     let proj_tags = api.get_tags(ProjectID(source_proj)).await;
                     if proj_tags.contains(tag) {
-                        checked_jobs.push((true, job));
+                        checked_jobs.push((true, job, None));
                     } else {
-                        checked_jobs.push((false, job));
+                        checked_jobs.push((false, job, Some(MailReason::InvalidTag)));
                         warn!("The job {} will be cancelled due to invalid tag.", job);
                     }
                 },
-                (Some(_), None) => checked_jobs.push((true, job)),
+                (Some(_), None) => checked_jobs.push((true, job, None)),
             }
         }
     }
