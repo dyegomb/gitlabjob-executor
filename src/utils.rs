@@ -36,6 +36,7 @@ pub fn pipelines_tocancel(
                     .map(|job| PipelineID(job.pipeline_id.unwrap()))
                     .collect::<Vec<PipelineID>>();
                 temp.sort();
+                temp.reverse();
                 temp.into_iter().skip(1).collect::<Vec<PipelineID>>()
             })
         })
@@ -52,17 +53,23 @@ pub async fn validate_jobs<'a>(
     // pipelines_tocancel: &HashMap<&ProjectID, Vec<PipelineID>>,
     // source_tags: &Vec<String>,
 ) -> Vec<(bool, &'a JobInfo, Option<MailReason>)> {
-
     let pipes_tocancel = pipelines_tocancel(proj_jobs);
     let mut checked_jobs = vec![];
 
     for (proj, jobs) in proj_jobs {
         for job in jobs {
-            if pipes_tocancel.get(proj).unwrap().contains(&PipelineID(job.pipeline_id.unwrap())) {
-                warn!("The job {} will be canceled due to duplicated pipelines", job);
+            if pipes_tocancel
+                .get(proj)
+                .unwrap()
+                .contains(&PipelineID(job.pipeline_id.unwrap()))
+            {
+                warn!(
+                    "The job {} will be canceled due to duplicated pipelines",
+                    job
+                );
                 checked_jobs.push((false, job, Some(MailReason::Duplicated)));
                 continue;
-            } 
+            }
             match (job.source_id, &job.git_tag) {
                 (None, None) => checked_jobs.push((true, job, None)),
                 (None, Some(tag)) => {
@@ -73,7 +80,7 @@ pub async fn validate_jobs<'a>(
                         checked_jobs.push((false, job, Some(MailReason::InvalidTag)));
                         warn!("The job {} will be cancelled due to invalid tag.", job);
                     }
-                },
+                }
                 (Some(source_proj), Some(tag)) => {
                     let proj_tags = api.get_tags(ProjectID(source_proj)).await;
                     if proj_tags.contains(tag) {
@@ -82,7 +89,7 @@ pub async fn validate_jobs<'a>(
                         checked_jobs.push((false, job, Some(MailReason::InvalidTag)));
                         warn!("The job {} will be cancelled due to invalid tag.", job);
                     }
-                },
+                }
                 (Some(_), None) => checked_jobs.push((true, job, None)),
             }
         }

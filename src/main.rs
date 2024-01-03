@@ -160,6 +160,7 @@ async fn main() {
     // tokio::pin!(stream_play);
 
     // while let Some(job_result) = stream_play.next().await {}
+    let verified_jobs = utils::validate_jobs(&api, &proj_jobs).await;
 
     let mail_relay = match mail_relay_handle.await {
         Ok(relay) => relay,

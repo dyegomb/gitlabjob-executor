@@ -4,7 +4,7 @@ use crate::prelude::*;
 
 impl GitlabJOB {
     /// Post facilitator with serde_json::Value as post body
-    async fn post_json(&self, url: String, json: Value) -> Result<Value, String> {
+    pub async fn post_json(&self, url: String, json: Value) -> Result<Value, String> {
         let resp = self.api_post(url.as_str(), json);
 
         match resp.send().await {

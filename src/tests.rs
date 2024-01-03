@@ -12,6 +12,44 @@ mod integration_tests {
     }
 
     #[tokio::test]
+    #[ignore = "pipeline cration"]
+    async fn create_pipeline() {
+        // TESTE_TOKENTRIG="token" cargo test --package gitlabjob --bin gitlabjob -- tests::integration_tests::create_pipeline \
+        // --exact --nocapture --ignored
+        use std::env;
+
+        let token_trigger = match env::var("TESTE_TOKENTRIG") {
+            Ok(value) => value,
+            Err(_) => panic!("No token to trigger a new job"),
+        };
+
+        init();
+
+        let config = Config::load_config().unwrap();
+        let api = GitlabJOB::new(&config);
+
+        let url = format!(
+            "api/v4/projects/{}/trigger/pipeline",
+            config.project_id.unwrap_or(0)
+        );
+
+        let json_post = serde_json::json!({
+                    "token": token_trigger,
+                    "ref": "master",
+                    "variables[trigger_email]": "teste@test.tst",
+                    "variables[source_id]": config.project_id.unwrap_or(0),
+                    "variables[ref_source]": "master",
+                    "variables[PROD_TAG]": "PROD-test-1.0.0"
+                }
+        );
+
+        match api.post_json(url, json_post).await {
+            Ok(_) => debug!("New pipeline created"),
+            Err(error) => panic!("Failed to create new pipeline: {}", error),
+        }
+    }
+
+    #[tokio::test]
     async fn test_pipelines_to_cancel() {
         init();
 
@@ -20,7 +58,7 @@ mod integration_tests {
         let api = GitlabJOB::new(&config);
         let proj = ProjectID(config.project_id.unwrap());
 
-        let response = api.get_jobs(proj, JobScope::Canceled).await;
+        let response = api.get_jobs(proj, JobScope::Manual).await;
 
         response.iter().for_each(|(project, jobs)| {
             debug!("Project {} has {} pipelines.", project.0, jobs.len())
