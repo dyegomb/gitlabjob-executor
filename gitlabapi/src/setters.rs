@@ -24,13 +24,13 @@ impl GitlabJOB {
 
 #[async_trait]
 pub trait JobActions<'a> {
-    async fn cancel_job(&self, job: &'a JobInfo) -> Result<&'a JobInfo, String>;
-    async fn play_job(&self, job: &'a JobInfo) -> Result<&'a JobInfo, String>;
+    async fn cancel_job(&self, job: &'a JobInfo) -> Result<&'a JobInfo, JobInfo>;
+    async fn play_job(&self, job: &'a JobInfo) -> Result<&'a JobInfo, JobInfo>;
 }
 
 #[async_trait]
 impl<'a> JobActions<'a> for GitlabJOB {
-    async fn cancel_job(&self, job: &'a JobInfo) -> Result<&'a JobInfo, String> {
+    async fn cancel_job(&self, job: &'a JobInfo) -> Result<&'a JobInfo, JobInfo> {
         let url = format!(
             "api/v4/projects/{}/jobs/{}/cancel",
             job.proj_id.unwrap(),
@@ -39,11 +39,16 @@ impl<'a> JobActions<'a> for GitlabJOB {
 
         match self.post_json(url, Value::String("".to_owned())).await {
             Ok(_) => Ok(job),
-            Err(e) => Err(format!("Error to cancel job {job}: {e}")),
+            Err(e) => {
+                let mut job = job.clone();
+                job.status = Some(JobScope::Invalid);
+                error!("Error to cancel job {job}: {}", e);
+                Err(job)
+            }
         }
     }
 
-    async fn play_job(&self, job: &'a JobInfo) -> Result<&'a JobInfo, String> {
+    async fn play_job(&self, job: &'a JobInfo) -> Result<&'a JobInfo, JobInfo> {
         let url = format!(
             "api/v4/projects/{}/jobs/{}/play",
             job.proj_id.unwrap(),
@@ -52,7 +57,12 @@ impl<'a> JobActions<'a> for GitlabJOB {
 
         match self.post_json(url, Value::String("".to_owned())).await {
             Ok(_) => Ok(job),
-            Err(e) => Err(format!("Error to play job {job}: {e}")),
+            Err(e) => {
+                let mut job = job.clone();
+                job.status = Some(JobScope::Invalid);
+                error!("Error to play job {job}: {}", e);
+                Err(job)
+            }
         }
     }
 }

@@ -20,7 +20,7 @@ pub mod prelude {
     pub use super::GitlabJOB;
     pub use super::STREAM_BUFF_SIZE;
     pub use super::{GroupID, JobID, PipelineID, ProjectID};
-    pub use log::{debug, warn};
+    pub use log::{debug, error, warn};
     pub use serde_json::Value;
 }
 

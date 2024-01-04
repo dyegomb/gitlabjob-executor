@@ -23,6 +23,24 @@ pub async fn mailrelay_buid(config: Config) -> Option<SmtpTransport> {
     }
 }
 
+/// Build mail message facilitator
+pub fn mail_message(job: &JobInfo, reason: MailReason, builder: &SmtpConfig) -> Message {
+    let subject = match reason {
+        MailReason::Duplicated => {
+            format!("Job {} canceled due to duplicated pipeline", job)
+        }
+        MailReason::InvalidTag => format!("Job {} canceled due to invalid git tag", job),
+        MailReason::ErrorToCancel => format!("Error trying to cancel job {}", job),
+        MailReason::ErrorToPlay => format!("Error to start job {}", job),
+        MailReason::MaxWaitElapsed => format!("Max wait time elapsed for job {}", job),
+        MailReason::Status(status) => format!("Status of job {}: {}", job, status),
+    };
+
+    let to = &job.user_mail;
+
+    builder.body_builder(subject, job.to_html(), to)
+}
+
 /// Reorder got jobs by Project id and Pipeline id skipping the first pipeline
 pub fn pipelines_tocancel(
     jobs: &HashMap<ProjectID, HashSet<JobInfo>>,
@@ -47,14 +65,13 @@ pub fn pipelines_tocancel(
     pipelines_tocancel
 }
 
+/// Check if the job must be canceled or played
 pub async fn validate_jobs<'a>(
     api: &GitlabJOB,
     proj_jobs: &'a HashMap<ProjectID, HashSet<JobInfo>>,
-    // pipelines_tocancel: &HashMap<&ProjectID, Vec<PipelineID>>,
-    // source_tags: &Vec<String>,
-) -> Vec<(bool, &'a JobInfo, Option<MailReason>)> {
+) -> HashMap<&'a JobInfo, (bool, Option<MailReason>)> {
     let pipes_tocancel = pipelines_tocancel(proj_jobs);
-    let mut checked_jobs = vec![];
+    let mut checked_jobs = HashMap::new();
 
     for (proj, jobs) in proj_jobs {
         for job in jobs {
@@ -67,30 +84,34 @@ pub async fn validate_jobs<'a>(
                     "The job {} will be canceled due to duplicated pipelines",
                     job
                 );
-                checked_jobs.push((false, job, Some(MailReason::Duplicated)));
+                checked_jobs.insert(job, (false, Some(MailReason::Duplicated)));
                 continue;
             }
             match (job.source_id, &job.git_tag) {
-                (None, None) => checked_jobs.push((true, job, None)),
+                (None, None) => {
+                    checked_jobs.insert(job, (true, None));
+                }
                 (None, Some(tag)) => {
                     let proj_tags = api.get_tags(*proj).await;
                     if proj_tags.contains(tag) {
-                        checked_jobs.push((true, job, None));
+                        checked_jobs.insert(job, (true, None));
                     } else {
-                        checked_jobs.push((false, job, Some(MailReason::InvalidTag)));
+                        checked_jobs.insert(job, (false, Some(MailReason::InvalidTag)));
                         warn!("The job {} will be cancelled due to invalid tag.", job);
                     }
                 }
                 (Some(source_proj), Some(tag)) => {
                     let proj_tags = api.get_tags(ProjectID(source_proj)).await;
                     if proj_tags.contains(tag) {
-                        checked_jobs.push((true, job, None));
+                        checked_jobs.insert(job, (true, None));
                     } else {
-                        checked_jobs.push((false, job, Some(MailReason::InvalidTag)));
+                        checked_jobs.insert(job, (false, Some(MailReason::InvalidTag)));
                         warn!("The job {} will be cancelled due to invalid tag.", job);
                     }
                 }
-                (Some(_), None) => checked_jobs.push((true, job, None)),
+                (Some(_), None) => {
+                    checked_jobs.insert(job, (true, None));
+                }
             }
         }
     }

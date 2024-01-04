@@ -48,6 +48,7 @@ use tokio::time as tktime;
 
 use configloader::prelude::*;
 use gitlabapi::{prelude::*, setters::JobActions};
+use mailsender::prelude::*;
 
 mod tests;
 mod utils;
@@ -82,9 +83,6 @@ async fn main() {
 
     // Scan projects for Manual jobs
     let api = GitlabJOB::new(&config);
-    // let mut playable_jobs: HashSet<&JobInfo> = HashSet::new();
-    // let mut cancel_jobs: HashSet<&JobInfo> = HashSet::new();
-    let mut mail_jobs_list: Vec<(Option<&JobInfo>, MailReason)> = vec![];
 
     let proj_jobs = match config.group_id {
         Some(group_id) => api.get_jobs(GroupID(group_id), JobScope::Manual).await,
@@ -100,73 +98,44 @@ async fn main() {
         proj_jobs.keys()
     );
 
-    // let pipelines_tocancel = utils::pipelines_tocancel(&proj_jobs);
-
-    // Classify jobs
-    // for (project, jobs) in &proj_jobs {
-    //     for job in jobs {
-    //         match job.pipeline_id {
-    //             Some(pipe_id) => {
-    //                 match pipelines_tocancel
-    //                     .get(project)
-    //                     .unwrap()
-    //                     .contains(&PipelineID(pipe_id))
-    //                 {
-    //                     true => {
-    //                         cancel_jobs.insert(job);
-    //                     }
-    //                     false => {
-    //                         if job.git_tag.is_some() && job.source_id.is_some() {
-    //                             // playable_jobs.insert(job);
-    //                             let tags = api.get_tags(ProjectID(job.source_id.unwrap())).await;
-    //                         } else {
-    //                             playable_jobs.insert(job);
-    //                         }
-    //                     }
-    //                 };
-    //             }
-    //             None => {
-    //                 warn!("A job without pipeline {}", job);
-    //                 cancel_jobs.insert(job);
-    //             }
-    //         }
-    //     }
-    // }
-
-    // // Cancel jobs
-    // let stream_cancel = stream::iter(cancel_jobs)
-    //     .map(|job| api.cancel_job(job))
-    //     .buffer_unordered(STREAM_BUFF_SIZE)
-    //     .fuse();
-    // tokio::pin!(stream_cancel);
-
-    // while let Some(job_result) = stream_cancel.next().await {
-    //     match job_result {
-    //         Ok(job) => {
-    //             mail_jobs_list.push((Some(job), MailReason::Duplicated));
-    //         }
-    //         Err(e) => {
-    //             error!("Error to cancel job: {}", e);
-    //             mail_jobs_list.push((None, MailReason::ErrorToCancel))
-    //         }
-    //     }
-    // }
-
-    // // Play jobs
-    // let stream_play = stream::iter(playable_jobs)
-    //     .map(|job| api.play_job(job))
-    //     .buffer_unordered(STREAM_BUFF_SIZE)
-    //     .fuse();
-    // tokio::pin!(stream_play);
-
-    // while let Some(job_result) = stream_play.next().await {}
     let verified_jobs = utils::validate_jobs(&api, &proj_jobs).await;
 
-    let mail_relay = match mail_relay_handle.await {
-        Ok(relay) => relay,
-        Err(e) => {
-            warn!("No email will be sent. {}", e);
-            None
+    let pending_status = [
+        JobScope::Pending,
+        JobScope::Running,
+        JobScope::WaitingForResource,
+        JobScope::Manual,
+    ];
+
+    let actions = stream::iter(&verified_jobs)
+        .map(|(job, context)| match context.0 {
+            true => api.play_job(job),
+            false => api.cancel_job(job),
+        })
+        .buffer_unordered(STREAM_BUFF_SIZE)
+        .fuse();
+    tokio::pin!(actions);
+
+    let mail_relay = mail_relay_handle.await.unwrap_or_default();
+    let smtp_configs = &config.smtp.unwrap_or_default();
+
+    while let Some(result) = actions.next().await {
+        match result {
+            Ok(job) => todo!(),
+            Err(job) => {
+                if let Some(ref mailer) = mail_relay {
+                    let message =
+                        utils::mail_message(&job, MailReason::ErrorToCancel, smtp_configs);
+                    match mailer.send(&message) {
+                        Ok(res) => {
+                            debug!("Sent mail for job {}: {}", job, res.code());
+                        }
+                        Err(error) => error!("Fail to send a email for job {}: {}", job, error),
+                    };
+                } else {
+                    error!("Fail to cancel job {job}");
+                }
+            }
         }
-    };
+    }
 }

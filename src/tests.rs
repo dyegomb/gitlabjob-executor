@@ -75,4 +75,28 @@ mod integration_tests {
         });
         debug!("{:?}", to_cancel);
     }
+
+    #[tokio::test]
+    #[ignore = "send email"]
+    async fn test_email() {
+        init();
+
+        let config = Config::load_config().unwrap();
+
+        let mail_relay_handle = tokio::spawn(utils::mailrelay_buid(config.clone()));
+
+        // let message = &config
+        //     .smtp
+        //     .unwrap()
+        //     .body_builder(subject, message, destination);
+        let test_job = JobInfo::default();
+
+        let message = utils::mail_message(&test_job, MailReason::ErrorToPlay, &config.smtp.unwrap_or_default());
+
+        let mail_relay = mail_relay_handle.await.unwrap_or_default();
+
+        if let Some(mailer) = mail_relay {
+            let _ = mailer.send(&message);
+        }
+    }
 }
