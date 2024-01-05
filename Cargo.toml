@@ -15,6 +15,7 @@ env_logger = "0.10"
 configloader = { path = "./configloader"}
 mailsender = { path = "./mailsender" }
 gitlabapi = { path = "./gitlabapi" }
+openssl = { version = "0.10", features = ["vendored"] }
 
 [dev-dependencies]
 env_logger = "0.10"
