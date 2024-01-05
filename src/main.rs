@@ -32,19 +32,9 @@
 //! SMTP settings from environment variables must has `SMTP_` prefix.
 //!
 
-// /// Get configuration settings from environment variables and/or toml file.
-// mod configloader;
-
-// /// API tools and the actual Gitlab API caller
-// mod gitlabapi;
-
-// /// Module to support mail reports
-// mod mailsender;
 use futures::stream::{self, StreamExt};
 use log::{error, info};
-// use std::collections::{HashMap, HashSet};
 use tokio::time as tktime;
-// use tokio_stream::StreamExt;
 
 use configloader::prelude::*;
 use gitlabapi::{prelude::*, setters::JobActions};
@@ -52,12 +42,6 @@ use mailsender::prelude::*;
 
 mod tests;
 mod utils;
-
-/// Just a generic Result type to ease error handling for us. Errors in multithreaded
-/// async contexts needs some extra restrictions
-///
-/// Reference: <https://blog.logrocket.com/a-practical-guide-to-async-in-rust/>
-// type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 #[derive(Debug)]
 enum MailReason {
@@ -132,8 +116,9 @@ async fn main() {
                     if pending_status.contains(&curr_status) {
                         tktime::sleep(loop_wait_time).await;
                     } else {
-                        if let Some(mailer) = mail_relay {
+                        if let Some(mailer) = mail_relay.clone() {
                             let job = job.clone();
+                            let smtp_configs = smtp_configs.clone();
                             mailing_handlers.push(tokio::spawn(async move {
                                 mailer.send(&utils::mail_message(
                                     &job,
@@ -141,16 +126,16 @@ async fn main() {
                                     &smtp_configs,
                                 ))
                             }));
-                        } else {
-                            info!("Job {} finished with status: {}", job, curr_status);
                         }
 
+                        info!("Job {} finished with status: {}", job, curr_status);
                         break;
                     }
 
                     if cronometer.elapsed() >= max_wait {
-                        if let Some(mailer) = mail_relay {
+                        if let Some(mailer) = mail_relay.clone() {
                             let job = job.clone();
+                            let smtp_configs = smtp_configs.clone();
                             mailing_handlers.push(tokio::spawn(async move {
                                 mailer.send(&utils::mail_message(
                                     &job,
@@ -163,23 +148,21 @@ async fn main() {
                         break;
                     }
                 }
-
-                todo!()
             }
             Err(job) => {
-                if let Some(ref mailer) = mail_relay {
-                    let message = match verified_jobs.get(&job) {
-                        Some(context) => {
-                            let reason = if context.0 {
-                                MailReason::ErrorToPlay
-                            } else {
-                                MailReason::ErrorToCancel
-                            };
-                            utils::mail_message(&job, reason, &smtp_configs)
-                        }
-                        None => todo!(),
-                    };
+                let message = match verified_jobs.get(&job) {
+                    Some(context) => {
+                        let reason = if context.0 {
+                            MailReason::ErrorToPlay
+                        } else {
+                            MailReason::ErrorToCancel
+                        };
+                        utils::mail_message(&job, reason, &smtp_configs)
+                    }
+                    None => unreachable!("Weird, some new job just appeared from nowhere: {}", job),
+                };
 
+                if let Some(ref mailer) = mail_relay {
                     match mailer.send(&message) {
                         Ok(res) => {
                             debug!("Sent mail for job {}: {}", job, res.code());
@@ -190,7 +173,7 @@ async fn main() {
                         ),
                     };
                 } else {
-                    error!("Fail to cancel job {job}");
+                    error!("Fail to act on job {}: {:?}", job, message);
                 }
             }
         }

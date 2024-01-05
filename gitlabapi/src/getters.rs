@@ -151,7 +151,7 @@ impl GitlabJOB {
                     JobScope::Invalid
                 }
             }
-            Err(_) => todo!(),
+            Err(_) => JobScope::Invalid,
         }
     }
 }
