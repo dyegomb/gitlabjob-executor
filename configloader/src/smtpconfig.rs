@@ -1,7 +1,11 @@
-use crate::mailsender::prelude::*;
+use lettre::message::Mailboxes;
+use merge::Merge;
+use serde::Deserialize;
+
+// use crate::prelude::*;
 
 /// Configurations to build mail report function
-#[derive(Deserialize, Debug, Merge, PartialEq, Clone)]
+#[derive(Deserialize, Default, Debug, Merge, PartialEq, Clone)]
 pub struct SmtpConfig {
     pub server: Option<String>,
     pub user: Option<String>,
@@ -12,17 +16,6 @@ pub struct SmtpConfig {
 }
 
 impl SmtpConfig {
-    pub fn default() -> Self {
-        SmtpConfig {
-            server: None,
-            user: None,
-            pass: None,
-            from: None,
-            to: None,
-            subject: None,
-        }
-    }
-
     /// Validates  head mail fields
     pub fn is_valid(&self) -> bool {
         let addresses = match &self.to {

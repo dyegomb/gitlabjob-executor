@@ -1,7 +1,6 @@
 use crate::mailsender::prelude::*;
 use tokio::time::Duration;
 
-
 /// Configuration for mail relay service
 #[derive(Clone)]
 pub struct MailSender {
@@ -11,7 +10,6 @@ pub struct MailSender {
     user: Option<String>,
     pass: Option<String>,
 }
-
 
 /// Implements a mail sender based on lettre
 impl MailSender {
@@ -50,7 +48,6 @@ impl MailSender {
     /// Try to autoconfigure mail sender
     /// based on: <https://github.com/lettre/lettre/blob/master/examples/autoconfigure.rs>
     fn try_build_relay(&mut self) -> Result<(), String> {
-
         let wait_time = Some(Duration::from_secs(20));
 
         let creds = if self.user.is_some() && self.pass.is_some() {
@@ -62,7 +59,6 @@ impl MailSender {
             warn!("Proceeding with unauthenticated smtp connection");
             None
         };
-
 
         let mut mailer = if let Some(creds) = creds {
             match SmtpTransport::relay(&self.server) {
@@ -88,7 +84,10 @@ impl MailSender {
         // Second try: Stmp with STARTTLS
         let tls_builder = TlsParameters::builder(self.server.to_owned());
 
-        let mut tls = tls_builder.clone().build().expect("Error while building TLS support");
+        let mut tls = tls_builder
+            .clone()
+            .build()
+            .expect("Error while building TLS support");
         mailer = mailer.tls(Tls::Opportunistic(tls));
 
         match mailer.clone().timeout(wait_time).build().test_connection() {
@@ -100,14 +99,17 @@ impl MailSender {
         }
 
         // Third try: Smtp with STARTTLS with invalid certificate
-        tls = tls_builder.dangerous_accept_invalid_certs(true).build().expect("Error while building TLS support");
+        tls = tls_builder
+            .dangerous_accept_invalid_certs(true)
+            .build()
+            .expect("Error while building TLS support");
 
         mailer = mailer.tls(Tls::Opportunistic(tls));
 
         match mailer.clone().timeout(wait_time).build().test_connection() {
             Ok(_) => {
                 warn!("Smtp server with invalid certificate");
-                self.relay = Some(mailer.build()) ;
+                self.relay = Some(mailer.build());
                 return Ok(());
             }
             Err(err) => debug!("Third try to build mailer didn't work: {}", err),
@@ -121,11 +123,11 @@ impl MailSender {
                 warn!("!!! SMTP CONNECTION WITHOUT ENCRYPTION !!!");
                 self.relay = Some(mailer.build());
                 Ok(())
-            },
+            }
             Err(err) => {
                 error!("Couldn't build mailer: {err}");
                 Err("Couldn't build mailer".to_owned())
-            },
+            }
         }
     }
 }

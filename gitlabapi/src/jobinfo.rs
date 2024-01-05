@@ -35,15 +35,15 @@ impl Display for JobScope {
 impl From<String> for JobScope {
     fn from(value: String) -> Self {
         match value.to_lowercase().as_str() {
-            "created" => JobScope::Created,
-            "pending" => JobScope::Pending,
-            "running" => JobScope::Running,
-            "failed" => JobScope::Failed,
-            "success" => JobScope::Success,
-            "canceled" => JobScope::Canceled,
-            "skipped" => JobScope::Skipped,
-            "waiting_for_resource" => JobScope::WaitingForResource,
-            "manual" => JobScope::Manual,
+            "created" | "\"created\"" => JobScope::Created,
+            "pending" | "\"pending\"" => JobScope::Pending,
+            "running" | "\"running\"" => JobScope::Running,
+            "failed" | "\"failed\"" => JobScope::Failed,
+            "success" | "\"success\"" => JobScope::Success,
+            "canceled" | "\"canceled\"" => JobScope::Canceled,
+            "skipped" | "\"skipped\"" => JobScope::Skipped,
+            "waiting_for_resource" | "\"waiting_for_resource\"" => JobScope::WaitingForResource,
+            "manual" | "\"manual\"" => JobScope::Manual,
             _ => JobScope::Invalid,
         }
     }
@@ -51,15 +51,25 @@ impl From<String> for JobScope {
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Default)]
 pub struct JobInfo {
+    /// ID of the JOB
     pub id: Option<u64>,
+    /// Job Status
     pub status: Option<JobScope>,
+    /// URL to access jog page
     pub url: Option<String>,
+    /// Name of job project
     pub proj_name: Option<String>,
+    /// ID from the job project
     pub proj_id: Option<u64>,
+    /// ID from the job pipeline
     pub pipeline_id: Option<u64>,
+    /// ID from the source project
     pub source_id: Option<u64>,
+    /// Mail of trigger user
     pub user_mail: Option<String>,
+    /// Branch from the source project
     pub branch: Option<String>,
+    /// Git tag to deploy
     pub git_tag: Option<String>,
 }
 
@@ -86,7 +96,6 @@ impl JobInfo {
             },
             None => JobScope::Invalid.to_string(),
         };
-
 
         format!(
             r#"
@@ -116,13 +125,19 @@ impl JobInfo {
                 </tr>
             </table>
             </div>
-            "#, proj_name.to_uppercase()
+            "#,
+            proj_name.to_uppercase()
         )
     }
 }
 
 impl Display for JobInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} from project {}", self.id.unwrap_or(00), self.proj_name.to_owned().unwrap_or("unknown".to_owned()))
+        write!(
+            f,
+            "{} from project {}",
+            self.id.unwrap_or(00),
+            self.proj_name.to_owned().unwrap_or("unknown".to_owned())
+        )
     }
 }

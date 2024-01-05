@@ -7,7 +7,9 @@ pub struct GitlabJOB {
 
 impl GitlabJOB {
     pub fn new(config: &Config) -> Self {
-        GitlabJOB { config: config.clone() }
+        GitlabJOB {
+            config: config.clone(),
+        }
     }
 
     /// Get a tuple from an option with serde_json::Value and number of pages as u64
@@ -210,7 +212,11 @@ impl GitlabJOB {
 
         let (parse_json, project_infos) = join!(self.get_json(&uri), self.get_proj_info(projid));
 
-        let mut jobinfo = JobInfo { id: Some(jobid), proj_id: Some(projid), ..Default::default() };
+        let mut jobinfo = JobInfo {
+            id: Some(jobid),
+            proj_id: Some(projid),
+            ..Default::default()
+        };
         // jobinfo.proj_id = Some(projid);
         // jobinfo.id = Some(jobid);
 
@@ -454,7 +460,7 @@ impl GitlabJOB {
     ) -> Result<(), HashSet<&'b JobInfo>> {
         let stream = stream::iter(jobs)
             .map(|job| async {
-                    match self.cancel_job(&(**job).clone()).await {
+                match self.cancel_job(&(**job).clone()).await {
                     Ok(_) => None,
                     Err(_) => Some(*job),
                 }
@@ -467,11 +473,10 @@ impl GitlabJOB {
             Ok(())
         } else {
             let mut error_jobs: HashSet<&JobInfo> = HashSet::new();
-            stream.iter().for_each(|job|{
+            stream.iter().for_each(|job| {
                 if let Some(job) = job {
                     error_jobs.insert(job);
                 }
-
             });
             Err(error_jobs)
         }
