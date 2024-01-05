@@ -47,6 +47,9 @@ WORKDIR /opt
 
 COPY Cargo.toml /opt/
 COPY src /opt/src
+COPY configloader /opt/configloader
+COPY gitlabapi /opt/gitlabapi
+COPY mailsender /opt/mailsender
 
 RUN cargo build --target x86_64-unknown-linux-musl --release
 

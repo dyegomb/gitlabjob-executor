@@ -44,7 +44,7 @@ mod tests;
 mod utils;
 
 #[derive(Debug)]
-enum MailReason {
+pub enum MailReason {
     Duplicated,
     InvalidTag,
     ErrorToCancel,
