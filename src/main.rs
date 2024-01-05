@@ -100,13 +100,6 @@ async fn main() {
 
     let verified_jobs = utils::validate_jobs(&api, &proj_jobs).await;
 
-    let pending_status = [
-        JobScope::Pending,
-        JobScope::Running,
-        JobScope::WaitingForResource,
-        JobScope::Manual,
-    ];
-
     let actions = stream::iter(&verified_jobs)
         .map(|(job, context)| match context.0 {
             true => api.play_job(job),
@@ -118,10 +111,24 @@ async fn main() {
 
     let mail_relay = mail_relay_handle.await.unwrap_or_default();
     let smtp_configs = &config.smtp.unwrap_or_default();
+    let pending_status = [
+        JobScope::Pending,
+        JobScope::Running,
+        JobScope::WaitingForResource,
+        JobScope::Manual,
+    ];
 
     while let Some(result) = actions.next().await {
         match result {
-            Ok(job) => todo!(),
+            Ok(job) => {
+                let cronometer = tktime::Instant::now();
+                let max_wait = tktime::Duration::from_secs(config.max_wait_time.unwrap_or(30));
+                let loop_wait_time = tktime::Duration::from_secs(10);
+
+                loop {
+                    let curr_status = api.get_status(job).await;
+                }
+            }
             Err(job) => {
                 if let Some(ref mailer) = mail_relay {
                     let message =
@@ -130,7 +137,10 @@ async fn main() {
                         Ok(res) => {
                             debug!("Sent mail for job {}: {}", job, res.code());
                         }
-                        Err(error) => error!("Fail to send a email for job {}: {}", job, error),
+                        Err(error) => error!(
+                            "Fail to send a email for job {}: {}\n{:?}",
+                            job, error, message
+                        ),
                     };
                 } else {
                     error!("Fail to cancel job {job}");

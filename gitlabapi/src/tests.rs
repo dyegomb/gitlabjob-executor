@@ -261,18 +261,39 @@ mod test_http {
     //         });
     //     });
     // }
-    // #[tokio::test]
-    // async fn test_get_git_tags() {
-    //     init();
+    #[tokio::test]
+    async fn test_get_git_tags() {
+        init();
 
-    //     let config = Config::load_config().unwrap();
+        let config = Config::load_config().unwrap();
 
-    //     let projid = config.project_id.unwrap();
+        let projid = config.project_id.unwrap();
 
-    //     let api = GitlabJOB::new(&config);
+        let api = GitlabJOB::new(&config);
 
-    //     let value = api.get_proj_git_tags(projid).await;
+        let value = api.get_tags(ProjectID(projid)).await;
 
-    //     debug!("Project tags: {:?}", value);
-    // }
+        debug!("Project tags: {:?}", value);
+    }
+
+    #[tokio::test]
+    async fn test_get_job_status() {
+        init();
+
+        let config = Config::load_config().unwrap();
+
+        let api = GitlabJOB::new(&config);
+
+        let specify_project = 306_u64;
+        let specify_job = 21295_u64;
+
+        let job_test = api
+            .get_info((ProjectID(specify_project), JobID(specify_job)))
+            .await
+            .unwrap_or_default();
+
+        let job_status = api.get_status(&job_test).await;
+
+        debug!("Current job status from job {job_test}: {:?}", job_status);
+    }
 }

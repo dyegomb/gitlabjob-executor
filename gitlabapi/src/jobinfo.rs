@@ -35,15 +35,15 @@ impl Display for JobScope {
 impl From<String> for JobScope {
     fn from(value: String) -> Self {
         match value.to_lowercase().as_str() {
-            "created" => JobScope::Created,
-            "pending" => JobScope::Pending,
-            "running" => JobScope::Running,
-            "failed" => JobScope::Failed,
-            "success" => JobScope::Success,
-            "canceled" => JobScope::Canceled,
-            "skipped" => JobScope::Skipped,
-            "waiting_for_resource" => JobScope::WaitingForResource,
-            "manual" => JobScope::Manual,
+            "created" | "\"created\"" => JobScope::Created,
+            "pending" | "\"pending\"" => JobScope::Pending,
+            "running" | "\"running\"" => JobScope::Running,
+            "failed" | "\"failed\"" => JobScope::Failed,
+            "success" | "\"success\"" => JobScope::Success,
+            "canceled" | "\"canceled\"" => JobScope::Canceled,
+            "skipped" | "\"skipped\"" => JobScope::Skipped,
+            "waiting_for_resource" | "\"waiting_for_resource\"" => JobScope::WaitingForResource,
+            "manual" | "\"manual\"" => JobScope::Manual,
             _ => JobScope::Invalid,
         }
     }

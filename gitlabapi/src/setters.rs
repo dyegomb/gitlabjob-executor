@@ -22,15 +22,17 @@ impl GitlabJOB {
     }
 }
 
+type ApiResult<'j> = Result<&'j JobInfo, JobInfo>;
+
 #[async_trait]
 pub trait JobActions<'a> {
-    async fn cancel_job(&self, job: &'a JobInfo) -> Result<&'a JobInfo, JobInfo>;
-    async fn play_job(&self, job: &'a JobInfo) -> Result<&'a JobInfo, JobInfo>;
+    async fn cancel_job(&self, job: &'a JobInfo) -> ApiResult<'a>;
+    async fn play_job(&self, job: &'a JobInfo) -> ApiResult<'a>;
 }
 
 #[async_trait]
 impl<'a> JobActions<'a> for GitlabJOB {
-    async fn cancel_job(&self, job: &'a JobInfo) -> Result<&'a JobInfo, JobInfo> {
+    async fn cancel_job(&self, job: &'a JobInfo) -> ApiResult<'a> {
         let url = format!(
             "api/v4/projects/{}/jobs/{}/cancel",
             job.proj_id.unwrap(),
@@ -48,7 +50,7 @@ impl<'a> JobActions<'a> for GitlabJOB {
         }
     }
 
-    async fn play_job(&self, job: &'a JobInfo) -> Result<&'a JobInfo, JobInfo> {
+    async fn play_job(&self, job: &'a JobInfo) -> ApiResult<'a> {
         let url = format!(
             "api/v4/projects/{}/jobs/{}/play",
             job.proj_id.unwrap(),

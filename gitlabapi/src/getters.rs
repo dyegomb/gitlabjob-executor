@@ -134,4 +134,23 @@ impl GitlabJOB {
 
         got_tags
     }
+
+    pub async fn get_status(&self, job: &JobInfo) -> JobScope {
+        let uri = format!(
+            "/api/v4/projects/{}/jobs/{}",
+            job.proj_id.unwrap(),
+            job.id.unwrap()
+        );
+
+        match self.get_json(&uri).await {
+            Ok((resp, _)) => {
+                if let Some(json) = resp.get("status") {
+                    json.to_string().trim().to_owned().into()
+                } else {
+                    JobScope::Invalid
+                }
+            }
+            Err(_) => todo!(),
+        }
+    }
 }

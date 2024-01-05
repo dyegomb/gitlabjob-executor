@@ -87,12 +87,16 @@ mod integration_tests {
 
         let test_job = JobInfo::default();
 
-        let message = utils::mail_message(&test_job, MailReason::ErrorToPlay, &config.smtp.unwrap_or_default());
+        let message = utils::mail_message(
+            &test_job,
+            MailReason::ErrorToPlay,
+            &config.smtp.unwrap_or_default(),
+        );
 
         let mail_relay = mail_relay_handle.await.unwrap_or_default();
 
         if let Some(mailer) = mail_relay {
-            match mailer.send(&message){
+            match mailer.send(&message) {
                 Ok(resp) => debug!("{:?}", resp),
                 Err(resp) => error!("{}", resp),
             };
