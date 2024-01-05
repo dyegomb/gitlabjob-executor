@@ -1,6 +1,6 @@
 [package]
 name = "gitlabjob"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 authors = ["Dyego <dyegomb@gmail.com"]
 license = "MIT"
@@ -8,19 +8,10 @@ license = "MIT"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls"] }
 tokio = { version = "1", features = ["full"] }
-# tokio-stream = "0.1"
 futures = "0.3"
-# serde = { version = "1.0", features = ["derive"] }
-# serde_json = "1.0"
-# # toml = "0.7"
-# # envy = "0.4"
 log = { version = "0.4", features = ["max_level_debug", "release_max_level_info"] }
 env_logger = "0.10"
-# # merge = "0.1"
-# lettre = { version = "0.10", features = ["rustls-tls"] }
-# openssl = { version = "0.10", features = ["vendored"] }
 configloader = { path = "./configloader"}
 mailsender = { path = "./mailsender" }
 gitlabapi = { path = "./gitlabapi" }
