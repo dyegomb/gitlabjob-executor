@@ -16,6 +16,8 @@ mod integration_tests {
     async fn create_pipeline() {
         // TESTE_TOKENTRIG="token" cargo test --package gitlabjob --bin gitlabjob -- tests::integration_tests::create_pipeline \
         // --exact --nocapture --ignored
+
+        // curl -X POST --fail -F "token=$totken" -F "ref=master" -F "variables[PROD_TAG]=PROD-1.1" https://gitlab.com/api/v4/projects/***PROJID***/trigger/pipeline
         use std::env;
 
         let token_trigger = match env::var("TESTE_TOKENTRIG") {
