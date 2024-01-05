@@ -211,7 +211,8 @@ mod test_http {
         let config = Config::load_config().unwrap();
 
         let api = GitlabJOB::new(&config);
-        let projid = 45307263;
+        // let projid = 45307263;
+        let projid = config.project_id.unwrap();
 
         let output = api.get_jobs(ProjectID(projid), JobScope::Success).await;
         let mut total_jobs = 0;
@@ -228,39 +229,7 @@ mod test_http {
         debug!("Total jobs: {}", total_jobs);
     }
 
-    // #[tokio::test]
-    // async fn test_get_all() {
-    //     init();
 
-    //     let config = Config::load_config().unwrap();
-
-    //     let api = GitlabJOB::new(&config);
-
-    //     let all_jobs = api.get_all_jobs(JobScope::Manual).await;
-
-    //     debug!("Total jobs: {}", all_jobs.len());
-    // }
-
-    // #[tokio::test]
-    // async fn test_get_pipelines() {
-    //     init();
-
-    //     let config = Config::load_config().unwrap();
-
-    //     let api = GitlabJOB::new(&config);
-
-    //     let pipelines = api.get_jobs_by_proj_and_pipeline(JobScope::Manual).await;
-
-    //     pipelines.iter().for_each(|(projid, pipe_hash)| {
-    //         debug!("*********************\nPROJECT: {}", projid);
-    //         pipe_hash.iter().for_each(|(pipeid, jobs)| {
-    //             debug!("=================\nPIPELINE: {}", pipeid);
-    //             jobs.iter().for_each(|job| {
-    //                 debug!("{:?}", job);
-    //             });
-    //         });
-    //     });
-    // }
     #[tokio::test]
     async fn test_get_git_tags() {
         init();

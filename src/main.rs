@@ -117,7 +117,9 @@ async fn main() {
                         tktime::sleep(loop_wait_time).await;
                     } else {
                         if let Some(mailer) = mail_relay.clone() {
-                            let job = job.clone();
+                            let mut job = job.clone();
+                            job.status = Some(curr_status);
+                            
                             let smtp_configs = smtp_configs.clone();
                             mailing_handlers.push(tokio::spawn(async move {
                                 mailer.send(&utils::mail_message(
@@ -179,6 +181,7 @@ async fn main() {
         }
     }
 
+    // Wait for mailings tasks
     for handle in mailing_handlers {
         let _ = handle.await;
     }
