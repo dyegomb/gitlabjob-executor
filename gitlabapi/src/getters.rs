@@ -135,6 +135,7 @@ impl GitlabJOB {
         got_tags
     }
 
+    /// Get current status of a job
     pub async fn get_status(&self, job: &JobInfo) -> JobScope {
         let uri = format!(
             "/api/v4/projects/{}/jobs/{}",

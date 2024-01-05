@@ -41,8 +41,8 @@
 // /// Module to support mail reports
 // mod mailsender;
 use futures::stream::{self, StreamExt};
-use log::error;
-use std::collections::{HashMap, HashSet};
+use log::{error, info};
+// use std::collections::{HashMap, HashSet};
 use tokio::time as tktime;
 // use tokio_stream::StreamExt;
 
@@ -57,7 +57,7 @@ mod utils;
 /// async contexts needs some extra restrictions
 ///
 /// Reference: <https://blog.logrocket.com/a-practical-guide-to-async-in-rust/>
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
+// type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 #[derive(Debug)]
 enum MailReason {
@@ -110,7 +110,8 @@ async fn main() {
     tokio::pin!(actions);
 
     let mail_relay = mail_relay_handle.await.unwrap_or_default();
-    let smtp_configs = &config.smtp.unwrap_or_default();
+    let smtp_configs = config.smtp.clone().unwrap_or_default();
+    let mut mailing_handlers = vec![];
     let pending_status = [
         JobScope::Pending,
         JobScope::Running,
@@ -127,12 +128,58 @@ async fn main() {
 
                 loop {
                     let curr_status = api.get_status(job).await;
+
+                    if pending_status.contains(&curr_status) {
+                        tktime::sleep(loop_wait_time).await;
+                    } else {
+                        if let Some(mailer) = mail_relay {
+                            let job = job.clone();
+                            mailing_handlers.push(tokio::spawn(async move {
+                                mailer.send(&utils::mail_message(
+                                    &job,
+                                    MailReason::Status(curr_status),
+                                    &smtp_configs,
+                                ))
+                            }));
+                        } else {
+                            info!("Job {} finished with status: {}", job, curr_status);
+                        }
+
+                        break;
+                    }
+
+                    if cronometer.elapsed() >= max_wait {
+                        if let Some(mailer) = mail_relay {
+                            let job = job.clone();
+                            mailing_handlers.push(tokio::spawn(async move {
+                                mailer.send(&utils::mail_message(
+                                    &job,
+                                    MailReason::MaxWaitElapsed,
+                                    &smtp_configs,
+                                ))
+                            }));
+                        }
+                        warn!("Job {} elapsed max waiting time", job);
+                        break;
+                    }
                 }
+
+                todo!()
             }
             Err(job) => {
                 if let Some(ref mailer) = mail_relay {
-                    let message =
-                        utils::mail_message(&job, MailReason::ErrorToCancel, smtp_configs);
+                    let message = match verified_jobs.get(&job) {
+                        Some(context) => {
+                            let reason = if context.0 {
+                                MailReason::ErrorToPlay
+                            } else {
+                                MailReason::ErrorToCancel
+                            };
+                            utils::mail_message(&job, reason, &smtp_configs)
+                        }
+                        None => todo!(),
+                    };
+
                     match mailer.send(&message) {
                         Ok(res) => {
                             debug!("Sent mail for job {}: {}", job, res.code());
@@ -147,5 +194,9 @@ async fn main() {
                 }
             }
         }
+    }
+
+    for handle in mailing_handlers {
+        let _ = handle.await;
     }
 }
