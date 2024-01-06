@@ -35,6 +35,7 @@
 use futures::stream::{self, StreamExt};
 use log::{error, info};
 use tokio::time as tktime;
+use std::sync::Arc;
 
 use configloader::prelude::*;
 use gitlabapi::{prelude::*, setters::JobActions};
@@ -94,7 +95,7 @@ async fn main() {
     tokio::pin!(actions);
 
     let mail_relay = mail_relay_handle.await.unwrap_or_default();
-    let smtp_configs = config.smtp.clone().unwrap_or_default();
+    let smtp_configs = Arc::new(config.smtp.clone().unwrap_or_default());
     let mut mailing_handlers = vec![];
     let pending_status = [
         JobScope::Pending,
@@ -112,6 +113,7 @@ async fn main() {
 
                 loop {
                     let curr_status = api.get_status(job).await;
+
 
                     if pending_status.contains(&curr_status) {
                         tktime::sleep(loop_wait_time).await;
