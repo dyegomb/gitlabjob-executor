@@ -49,13 +49,14 @@ pub fn pipelines_tocancel(
     jobs.iter()
         .map(|(proj, jobs)| {
             (*proj, {
-                let mut temp = jobs
+                let temp = jobs
                     .iter()
                     .map(|job| PipelineID(job.pipeline_id.unwrap()))
-                    .collect::<Vec<PipelineID>>();
-                temp.sort();
-                temp.reverse();
-                temp.into_iter().skip(1).collect::<Vec<PipelineID>>()
+                    .collect::<HashSet<PipelineID>>();
+                let mut vec_temp = temp.into_iter().collect::<Vec<PipelineID>>();
+                vec_temp.sort();
+                vec_temp.reverse();
+                vec_temp.into_iter().skip(1).collect::<Vec<PipelineID>>()
             })
         })
         .for_each(|(key, vec)| {

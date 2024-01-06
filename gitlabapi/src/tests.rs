@@ -229,7 +229,6 @@ mod test_http {
         debug!("Total jobs: {}", total_jobs);
     }
 
-
     #[tokio::test]
     async fn test_get_git_tags() {
         init();

@@ -34,6 +34,7 @@
 
 use futures::stream::{self, StreamExt};
 use log::{error, info};
+use std::sync::Arc;
 use tokio::time as tktime;
 
 use configloader::prelude::*;
@@ -93,8 +94,8 @@ async fn main() {
         .fuse();
     tokio::pin!(actions);
 
-    let mail_relay = mail_relay_handle.await.unwrap_or_default();
-    let smtp_configs = config.smtp.clone().unwrap_or_default();
+    let mail_relay = Arc::new(mail_relay_handle.await.unwrap_or_default());
+    let smtp_configs = Arc::new(config.smtp.clone().unwrap_or_default());
     let mut mailing_handlers = vec![];
     let pending_status = [
         JobScope::Pending,
@@ -104,6 +105,7 @@ async fn main() {
     ];
 
     while let Some(result) = actions.next().await {
+        // let mail_relay = mail_relay.clone();
         match result {
             Ok(job) => {
                 let cronometer = tktime::Instant::now();
@@ -116,11 +118,12 @@ async fn main() {
                     if pending_status.contains(&curr_status) {
                         tktime::sleep(loop_wait_time).await;
                     } else {
-                        if let Some(mailer) = mail_relay.clone() {
+                        if let Some(mailer) = Option::as_ref(&mail_relay) {
                             let mut job = job.clone();
                             job.status = Some(curr_status);
-                            
+
                             let smtp_configs = smtp_configs.clone();
+                            let mailer = mailer.clone();
                             mailing_handlers.push(tokio::spawn(async move {
                                 mailer.send(&utils::mail_message(
                                     &job,
@@ -135,9 +138,10 @@ async fn main() {
                     }
 
                     if cronometer.elapsed() >= max_wait {
-                        if let Some(mailer) = mail_relay.clone() {
+                        if let Some(mailer) = Option::as_ref(&mail_relay) {
                             let job = job.clone();
                             let smtp_configs = smtp_configs.clone();
+                            let mailer = mailer.clone();
                             mailing_handlers.push(tokio::spawn(async move {
                                 mailer.send(&utils::mail_message(
                                     &job,
@@ -164,7 +168,7 @@ async fn main() {
                     None => unreachable!("Weird, some new job just appeared from nowhere: {}", job),
                 };
 
-                if let Some(ref mailer) = mail_relay {
+                if let Some(mailer) = Option::as_ref(&mail_relay) {
                     match mailer.send(&message) {
                         Ok(res) => {
                             debug!("Sent mail for job {}: {}", job, res.code());

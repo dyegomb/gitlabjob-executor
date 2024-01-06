@@ -38,15 +38,17 @@ mod integration_tests {
         let json_post = serde_json::json!({
                     "token": token_trigger,
                     "ref": "master",
-                    "variables[trigger_email]": "teste@test.tst",
-                    "variables[source_id]": config.project_id.unwrap_or(0),
-                    "variables[ref_source]": "master",
-                    "variables[PROD_TAG]": "PROD-test-1.0.0"
+                    "variables": {
+                        "trigger_email": "teste@test.tst",
+                        "source_id": config.project_id.unwrap_or(0),
+                        "ref_source": "master",
+                        "PROD_TAG": "PROD-test-1.0.0",
+                    }
                 }
         );
 
         match api.post_json(url, json_post).await {
-            Ok(_) => debug!("New pipeline created"),
+            Ok(resp) => debug!("New pipeline created"),
             Err(error) => panic!("Failed to create new pipeline: {}", error),
         }
     }
