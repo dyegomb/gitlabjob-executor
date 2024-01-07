@@ -44,7 +44,7 @@ use mailsender::prelude::*;
 mod tests;
 mod utils;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum MailReason {
     Duplicated,
     InvalidTag,
@@ -101,11 +101,10 @@ async fn main() {
         JobScope::Pending,
         JobScope::Running,
         JobScope::WaitingForResource,
-        JobScope::Manual,
+        // JobScope::Manual,
     ];
 
     while let Some(result) = actions.next().await {
-        // let mail_relay = mail_relay.clone();
         match result {
             Ok(job) => {
                 let cronometer = tktime::Instant::now();
@@ -119,17 +118,23 @@ async fn main() {
                         tktime::sleep(loop_wait_time).await;
                     } else {
                         if let Some(mailer) = Option::as_ref(&mail_relay) {
+                            let msg_reason = match curr_status {
+                                JobScope::Canceled => {
+                                    match &verified_jobs.get(&job).unwrap_or(&(false, None)).1 {
+                                        Some(reason) => reason.clone(),
+                                        None => MailReason::Status(curr_status),
+                                    }
+                                }
+                                _ => MailReason::Status(curr_status),
+                            };
+
                             let mut job = job.clone();
                             job.status = Some(curr_status);
 
                             let smtp_configs = smtp_configs.clone();
                             let mailer = mailer.clone();
                             mailing_handlers.push(tokio::spawn(async move {
-                                mailer.send(&utils::mail_message(
-                                    &job,
-                                    MailReason::Status(curr_status),
-                                    &smtp_configs,
-                                ))
+                                mailer.send(&utils::mail_message(&job, msg_reason, &smtp_configs))
                             }));
                         }
 
@@ -185,7 +190,7 @@ async fn main() {
         }
     }
 
-    // Wait for mailings tasks
+    // Wait for mailing tasks
     for handle in mailing_handlers {
         let _ = handle.await;
     }
