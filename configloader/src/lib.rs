@@ -90,7 +90,7 @@ impl Config {
         };
         if config.base_url.is_none() {
             error!("There's no gitlab server to scan");
-            // std::process::exit(1);
+            std::process::exit(1);
         }
 
         Ok(config)
