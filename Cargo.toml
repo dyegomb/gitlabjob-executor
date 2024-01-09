@@ -15,15 +15,17 @@ env_logger = "0.10"
 configloader = { path = "./configloader"}
 mailsender = { path = "./mailsender" }
 gitlabapi = { path = "./gitlabapi" }
-openssl = { version = "0.10", features = ["vendored"] }
 
 [dev-dependencies]
 env_logger = "0.10"
 serde_json = "1.0"
 
+[target.'cfg(all(target_env = "musl", target_pointer_width = "64"))'.dependencies]
+openssl = { version = "0.10", features = ["vendored"] }
+jemallocator = { version = "0.5" }
 
-[target.'cfg(all(target_env = "musl", target_pointer_width = "64"))'.dependencies.jemallocator]
-version = "0.5"
+# [target.'cfg(all(target_env = "musl", target_pointer_width = "64"))'.dependencies.jemallocator]
+# version = "0.5"
 
 [workspace]
 members = [
