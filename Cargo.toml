@@ -20,12 +20,11 @@ gitlabapi = { path = "./gitlabapi" }
 env_logger = "0.10"
 serde_json = "1.0"
 
-[target.'cfg(all(target_env = "musl", target_pointer_width = "64"))'.dependencies]
+[target.'cfg(all(target_env = "musl"))'.dependencies]
 openssl = { version = "0.10", features = ["vendored"] }
-jemallocator = { version = "0.5" }
 
-# [target.'cfg(all(target_env = "musl", target_pointer_width = "64"))'.dependencies.jemallocator]
-# version = "0.5"
+[target.'cfg(all(target_env = "musl", target_pointer_width = "64"))'.dependencies.jemallocator]
+version = "0.5"
 
 [workspace]
 members = [
