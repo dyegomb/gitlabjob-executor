@@ -32,7 +32,8 @@ impl GitlabJOB {
             },
 
             Err(error) => {
-                panic!("Couldn't construct the api caller: {}", error)
+                error!("Couldn't construct the api caller: {}", error);
+                std::process::exit(11)
             }
         }
     }
@@ -53,8 +54,8 @@ impl GitlabJOB {
         match reqwest::Url::parse(&new_uri) {
             Ok(url) => url,
             Err(error) => {
-                // error!("Error while parsing url: {}", new_uri);
-                panic!("Error while parsing url \"{}\": {}", new_uri, error)
+                error!("Error while parsing url \"{}\": {}", new_uri, error);
+                std::process::exit(12)
             }
         }
     }

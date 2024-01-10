@@ -3,6 +3,7 @@ mod integration_tests {
     use crate::*;
     // use std::io::Write;
     use log::debug;
+    use std::process::exit;
 
     fn init() {
         let _ = env_logger::builder()
@@ -22,7 +23,10 @@ mod integration_tests {
 
         let token_trigger = match env::var("TESTE_TOKENTRIG") {
             Ok(value) => value,
-            Err(_) => panic!("No token to trigger a new job"),
+            Err(_) => {
+                error!("No token to trigger a new job");
+                exit(1)
+            }
         };
 
         init();
@@ -47,7 +51,10 @@ mod integration_tests {
 
         match api.post_json(url, json_post).await {
             Ok(resp) => debug!("New pipeline created:\n{:?}", resp),
-            Err(error) => panic!("Failed to create new pipeline: {}", error),
+            Err(error) => {
+                error!("Failed to create new pipeline: {}", error);
+                exit(1)
+            }
         }
     }
 

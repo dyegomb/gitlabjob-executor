@@ -61,7 +61,10 @@ async fn main() {
 
     let config = match Config::load_config() {
         Ok(conf) => conf,
-        Err(err) => panic!("Error loading configurations. {}", err),
+        Err(err) => {
+            error!("Error loading configurations. {}", err);
+            std::process::exit(1)
+        }
     };
 
     let mail_relay_handle = tokio::spawn(utils::mailrelay_buid(config.clone()));
@@ -73,7 +76,10 @@ async fn main() {
         Some(group_id) => api.get_jobs(GroupID(group_id), JobScope::Manual).await,
         None => match config.project_id {
             Some(proj_id) => api.get_jobs(ProjectID(proj_id), JobScope::Manual).await,
-            None => panic!("There's no project to scan for jobs."),
+            None => {
+                error!("There's no project to scan for jobs.");
+                std::process::exit(2)
+            }
         },
     };
 
@@ -101,7 +107,7 @@ async fn main() {
         JobScope::Pending,
         JobScope::Running,
         JobScope::WaitingForResource,
-        // JobScope::Manual,
+        JobScope::Manual,
     ];
 
     while let Some(result) = actions.next().await {

@@ -121,11 +121,11 @@ This is a <b>test message</b>. :-)
         if let Some(relay) = mailsender.relay {
             match relay.send(&mail_message) {
                 Ok(_) => debug!("Message 1 sent"),
-                Err(err) => panic!("{}", err),
+                Err(err) => error!("{}", err),
             };
             match relay.send(&mail_message2) {
                 Ok(_) => debug!("Message 2 sent"),
-                Err(err) => panic!("{}", err),
+                Err(err) => error!("{}", err),
             };
         };
     }
