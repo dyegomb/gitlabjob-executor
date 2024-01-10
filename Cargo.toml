@@ -9,7 +9,7 @@ license = "MIT"
 
 [dependencies]
 # tokio = { version = "1", features = ["full"] }
-tokio = { version = "1", features = ["time", "macros", "rt", "rt-multi-thread"] }
+tokio = { version = "1", default-features = false, features = ["time", "macros", "rt", "rt-multi-thread"] }
 futures = "0.3"
 log = { version = "0.4", features = ["max_level_debug", "release_max_level_info"] }
 env_logger = "0.10"
@@ -39,8 +39,12 @@ opt-level = 0
 
 [profile.release]
 codegen-units = 1
-opt-level = 3
+# opt-level = 3
+opt-level = "z"
 lto = "fat"
-# strip = "symbols"
-strip = true
+strip = "symbols"
+# strip = true
 panic = "abort"
+debug = false
+debug-assertions = false
+overflow-checks = false

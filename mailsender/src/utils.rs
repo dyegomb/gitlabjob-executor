@@ -41,7 +41,8 @@ impl SmtpUtils for SmtpConfig {
         destination: &Option<String>,
     ) -> Message {
         if !self.is_valid() {
-            panic!("Smtp configuration is invalid")
+            error!("Smtp configuration is invalid");
+            std::process::exit(31)
         };
 
         let concat_subject = format!(
@@ -81,7 +82,10 @@ impl SmtpUtils for SmtpConfig {
             .body(message)
         {
             Ok(message) => message,
-            Err(_) => panic!("Couldn't build a mail message"),
+            Err(_) => {
+                error!("Couldn't build a mail message");
+                std::process::exit(32)
+            }
         }
     }
 }
