@@ -102,7 +102,7 @@ async fn main() {
 
     let mail_relay = Arc::new(mail_relay_handle.await.unwrap_or_default());
     let smtp_configs = Arc::new(config.smtp.clone().unwrap_or_default());
-    let mut mailing_handlers = vec![];
+    let mut mailing_handlers = Vec::with_capacity(verified_jobs.len());
     let pending_status = [
         JobScope::Pending,
         JobScope::Running,
