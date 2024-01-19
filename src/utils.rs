@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, BTreeSet};
 
 use gitlabapi::prelude::*;
 use mailsender::prelude::*;
@@ -49,14 +49,12 @@ pub fn pipelines_tocancel(
     jobs.iter()
         .map(|(proj, jobs)| {
             (*proj, {
-                let temp = jobs
+                let mut temp = jobs
                     .iter()
                     .map(|job| PipelineID(job.pipeline_id.unwrap()))
-                    .collect::<HashSet<PipelineID>>();
-                let mut vec_temp = temp.into_iter().collect::<Vec<PipelineID>>();
-                vec_temp.sort();
-                vec_temp.reverse();
-                vec_temp.into_iter().skip(1).collect::<Vec<PipelineID>>()
+                    .collect::<BTreeSet<PipelineID>>();
+                temp.pop_last();
+                temp.into_iter().collect::<Vec<_>>()
             })
         })
         .for_each(|(key, vec)| {
