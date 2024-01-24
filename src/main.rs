@@ -122,6 +122,7 @@ async fn main() {
 
                     if pending_status.contains(&curr_status) {
                         tktime::sleep(loop_wait_time).await;
+                        debug!("Waiting for job {}", job);
                     } else {
                         if let Some(mailer) = Option::as_ref(&mail_relay) {
                             let msg_reason = match curr_status {
