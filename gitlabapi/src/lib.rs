@@ -16,6 +16,7 @@ pub mod prelude {
     pub use super::getters_traits::*;
     pub use super::jobinfo::{JobInfo, JobScope};
     pub use super::setters;
+    pub use super::setters::JobActions;
     pub use super::Config;
     pub use super::GitlabJOB;
     pub use super::STREAM_BUFF_SIZE;

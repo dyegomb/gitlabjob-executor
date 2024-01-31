@@ -39,7 +39,7 @@ use tokio::time as tktime;
 use tokio::sync::Mutex;
 
 use configloader::prelude::*;
-use gitlabapi::{prelude::*, setters::JobActions};
+use gitlabapi::prelude::*;
 use mailsender::prelude::*;
 
 mod tests;
