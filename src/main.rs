@@ -36,9 +36,10 @@ use futures::stream::{self, StreamExt};
 use log::{error, info};
 use std::sync::Arc;
 use tokio::time as tktime;
+use tokio::sync::Mutex;
 
 use configloader::prelude::*;
-use gitlabapi::{prelude::*, setters::JobActions};
+use gitlabapi::prelude::*;
 use mailsender::prelude::*;
 
 mod tests;
@@ -97,12 +98,18 @@ async fn main() {
             false => api.cancel_job(job),
         })
         .buffer_unordered(STREAM_BUFF_SIZE)
-        .fuse();
-    tokio::pin!(actions);
+        .fuse()
+        .collect::<Vec<Result<&JobInfo, JobInfo>>>()
+        .await;
 
+    info!("All jobs were triggered. Now I'll wait theirs endings...");
+
+    // Prepare for mail reports
     let mail_relay = Arc::new(mail_relay_handle.await.unwrap_or_default());
     let smtp_configs = Arc::new(config.smtp.clone().unwrap_or_default());
-    let mut mailing_handlers = Vec::with_capacity(verified_jobs.len());
+    let mailing_handlers = Arc::new(Mutex::new(Vec::with_capacity(verified_jobs.len())));
+
+    // Which Gitlab status must be waited
     let pending_status = [
         JobScope::Pending,
         JobScope::Running,
@@ -110,94 +117,114 @@ async fn main() {
         JobScope::Manual,
     ];
 
-    while let Some(result) = actions.next().await {
-        match result {
-            Ok(job) => {
-                let cronometer = tktime::Instant::now();
-                let max_wait = tktime::Duration::from_secs(config.max_wait_time.unwrap_or(30));
-                let loop_wait_time = tktime::Duration::from_secs(10);
+    // Stream to monitor jobs' status
+    let monitor_jobs = stream::iter(actions)
+        .map(|result| async {
+            match result {
+                Ok(job) => {
+                    let cronometer = tktime::Instant::now();
+                    let max_wait = tktime::Duration::from_secs(config.max_wait_time.unwrap_or(30));
+                    let loop_wait_time = tktime::Duration::from_secs(10);
+                    let mail_hands = mailing_handlers.clone();
 
-                loop {
-                    let curr_status = api.get_status(job).await;
+                    loop {
+                        let curr_status = &api.get_status(job).await;
 
-                    if pending_status.contains(&curr_status) {
-                        tktime::sleep(loop_wait_time).await;
-                    } else {
-                        if let Some(mailer) = Option::as_ref(&mail_relay) {
-                            let msg_reason = match curr_status {
-                                JobScope::Canceled => {
-                                    match &verified_jobs.get(&job).unwrap_or(&(false, None)).1 {
-                                        Some(reason) => reason.clone(),
-                                        None => MailReason::Status(curr_status),
-                                    }
-                                }
-                                _ => MailReason::Status(curr_status),
-                            };
-
-                            let mut job = job.clone();
-                            job.status = Some(curr_status);
-
-                            let smtp_configs = smtp_configs.clone();
-                            let mailer = mailer.clone();
-                            mailing_handlers.push(tokio::spawn(async move {
-                                mailer.send(&utils::mail_message(&job, msg_reason, &smtp_configs))
-                            }));
-                        }
-
-                        info!("Job {} finished with status: {}", job, curr_status);
-                        break;
-                    }
-
-                    if cronometer.elapsed() >= max_wait {
-                        if let Some(mailer) = Option::as_ref(&mail_relay) {
-                            let job = job.clone();
-                            let smtp_configs = smtp_configs.clone();
-                            let mailer = mailer.clone();
-                            mailing_handlers.push(tokio::spawn(async move {
-                                mailer.send(&utils::mail_message(
-                                    &job,
-                                    MailReason::MaxWaitElapsed,
-                                    &smtp_configs,
-                                ))
-                            }));
-                        }
-                        warn!("Job {} elapsed max waiting time", job);
-                        break;
-                    }
-                }
-            }
-            Err(job) => {
-                let message = match verified_jobs.get(&job) {
-                    Some(context) => {
-                        let reason = if context.0 {
-                            MailReason::ErrorToPlay
+                        if pending_status.contains(curr_status) {
+                            tktime::sleep(loop_wait_time).await;
+                            debug!("Waiting for job {}", job);
                         } else {
-                            MailReason::ErrorToCancel
-                        };
-                        utils::mail_message(&job, reason, &smtp_configs)
-                    }
-                    None => unreachable!("Weird, some new job just appeared from nowhere: {}", job),
-                };
+                            if let Some(mailer) = Option::as_ref(&mail_relay) {
+                                let msg_reason = match curr_status {
+                                    JobScope::Canceled => {
+                                        match &verified_jobs.get(&job).unwrap_or(&(false, None)).1 {
+                                            Some(reason) => reason.clone(),
+                                            None => MailReason::Status(*curr_status),
+                                        }
+                                    }
+                                    _ => MailReason::Status(*curr_status),
+                                };
 
-                if let Some(mailer) = Option::as_ref(&mail_relay) {
-                    match mailer.send(&message) {
-                        Ok(res) => {
-                            debug!("Sent mail for job {}: {}", job, res.code());
+                                let mut job = job.clone();
+                                job.status = Some(*curr_status);
+
+                                let smtp_configs = smtp_configs.clone();
+                                let mailer = mailer.clone();
+                                let mut mailing_handlers_arc = mail_hands.lock().await;
+                                mailing_handlers_arc.push(tokio::spawn(async move {
+                                    mailer.send(&utils::mail_message(
+                                        &job,
+                                        msg_reason,
+                                        &smtp_configs,
+                                    ))
+                                }));
+                            }
+
+                            info!("Job {} finished with status: {}", job, curr_status);
+                            break;
                         }
-                        Err(error) => error!(
-                            "Fail to send a email for job {}: {}\n{:?}",
-                            job, error, message
-                        ),
+
+                        if cronometer.elapsed() >= max_wait {
+                            if let Some(mailer) = Option::as_ref(&mail_relay) {
+                                let job = job.clone();
+                                let smtp_configs = smtp_configs.clone();
+                                let mailer = mailer.clone();
+                                let mut mailing_handlers_arc = mail_hands.lock().await;
+                                mailing_handlers_arc.push(tokio::spawn(async move {
+                                    mailer.send(&utils::mail_message(
+                                        &job,
+                                        MailReason::MaxWaitElapsed,
+                                        &smtp_configs,
+                                    ))
+                                }));
+                            }
+                            warn!("Job {} elapsed max waiting time", job);
+                            break;
+                        }
+                    }
+                }
+                Err(job) => {
+                    let message = match verified_jobs.get(&job) {
+                        Some(context) => {
+                            let reason = if context.0 {
+                                MailReason::ErrorToPlay
+                            } else {
+                                MailReason::ErrorToCancel
+                            };
+                            utils::mail_message(&job, reason, &smtp_configs)
+                        }
+                        None => unreachable!("Weird, some new job just appeared from nowhere: {}", job)
                     };
-                } else {
-                    error!("Fail to act on job {}: {:?}", job, message);
+
+                    if let Some(mailer) = Option::as_ref(&mail_relay) {
+                        match mailer.send(&message) {
+                            Ok(res) => {
+                                debug!("Sent mail for job {}: {}", job, res.code());
+                            }
+                            Err(error) => {
+                                error!(
+                                    "Fail to send a email for job {}: {}\n{:?}",
+                                    job, error, message
+                                );
+                            }
+                        };
+                    } else {
+                        error!("Fail to act on job {}: {:?}", job, message);
+                    }
                 }
             }
-        }
-    }
+        })
+        .buffer_unordered(STREAM_BUFF_SIZE)
+        .fuse();
+    tokio::pin!(monitor_jobs);
+
+    // Just another way to run streams
+    while (monitor_jobs.next().await).is_some() {}
 
     // Wait for mailing tasks
-    for handle in mailing_handlers {
-        let _ = handle.await;
+    let mut mailing_handlers_arc = mailing_handlers.lock().await;
+    let end_mail_handlers = mailing_handlers_arc.iter_mut();
+    for hand in end_mail_handlers {
+        let _ = hand.await;
     }
 }
