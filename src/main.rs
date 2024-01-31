@@ -101,12 +101,13 @@ async fn main() {
         .fuse()
         .collect::<Vec<Result<&JobInfo, JobInfo>>>()
         .await;
-    // tokio::pin!(actions);
-    // let jobbers: Vec<Result<&JobInfo, JobInfo>> = actions.collect().await;
 
+    // Prepare for mail reports
     let mail_relay = Arc::new(mail_relay_handle.await.unwrap_or_default());
     let smtp_configs = Arc::new(config.smtp.clone().unwrap_or_default());
     let mailing_handlers = Arc::new(Mutex::new(Vec::with_capacity(verified_jobs.len())));
+
+    // Which Gitlab status must be waited
     let pending_status = [
         JobScope::Pending,
         JobScope::Running,
@@ -114,6 +115,7 @@ async fn main() {
         JobScope::Manual,
     ];
 
+    // Stream to monitor jobs' status
     let monitor_jobs = stream::iter(actions)
         .map(|result| async {
             match result {
@@ -189,9 +191,7 @@ async fn main() {
                             };
                             utils::mail_message(&job, reason, &smtp_configs)
                         }
-                        None => {
-                            unreachable!("Weird, some new job just appeared from nowhere: {}", job);
-                        }
+                        None => unreachable!("Weird, some new job just appeared from nowhere: {}", job)
                     };
 
                     if let Some(mailer) = Option::as_ref(&mail_relay) {
