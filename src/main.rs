@@ -102,6 +102,8 @@ async fn main() {
         .collect::<Vec<Result<&JobInfo, JobInfo>>>()
         .await;
 
+    info!("All jobs were triggered. Now I'll wait theirs endings...");
+
     // Prepare for mail reports
     let mail_relay = Arc::new(mail_relay_handle.await.unwrap_or_default());
     let smtp_configs = Arc::new(config.smtp.clone().unwrap_or_default());
