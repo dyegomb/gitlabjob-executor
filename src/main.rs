@@ -102,7 +102,9 @@ async fn main() {
         .collect::<Vec<Result<&JobInfo, JobInfo>>>()
         .await;
 
-    info!("All jobs were triggered. Now I'll wait theirs endings...");
+    if actions.len() > 0 {
+        info!("All jobs were triggered. Now I'll wait theirs endings...");
+    }
 
     // Prepare for mail reports
     let mail_relay = Arc::new(mail_relay_handle.await.unwrap_or_default());
@@ -125,7 +127,7 @@ async fn main() {
                     let cronometer = tktime::Instant::now();
                     let max_wait = tktime::Duration::from_secs(config.max_wait_time.unwrap_or(30));
                     let loop_wait_time = tktime::Duration::from_secs(10);
-                    let mail_hands = mailing_handlers.clone();
+                    let mail_hands = Arc::clone(&mailing_handlers);
 
                     loop {
                         let curr_status = &api.get_status(job).await;
