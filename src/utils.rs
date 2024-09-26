@@ -3,24 +3,23 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use gitlabapi::prelude::*;
 use mailsender::prelude::*;
 
-use crate::{Config, MailReason};
+use crate::MailReason;
+use crate::SmtpConfig;
 use log::{error, warn};
 
 /// Build the mail relay
-pub async fn mailrelay_buid(config: Config) -> Option<SmtpTransport> {
-    match &config.smtp {
-        Some(smtp) => match smtp.is_valid() {
-            true => match MailSender::try_new(smtp.to_owned()).await {
-                Ok(mailer) => mailer.relay,
-                Err(error) => {
-                    error!("{}", error);
-                    None
-                }
-            },
-            false => None,
+pub async fn mailrelay_buid(smtp_config: SmtpConfig) -> Option<SmtpTransport> {
+    match smtp_config.is_valid() {
+        true => match MailSender::try_new(smtp_config.to_owned()).await {
+            Ok(mailer) => mailer.relay,
+            Err(error) => {
+                error!("{}", error);
+                return None;
+            }
         },
-        None => None,
-    }
+        false => None,
+    };
+    None
 }
 
 /// Build mail message facilitator

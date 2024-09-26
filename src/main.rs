@@ -35,8 +35,8 @@
 use futures::stream::{self, StreamExt};
 use log::{error, info};
 use std::sync::Arc;
-use tokio::time as tktime;
 use tokio::sync::Mutex;
+use tokio::time as tktime;
 
 use configloader::prelude::*;
 use gitlabapi::prelude::*;
@@ -68,7 +68,10 @@ async fn main() {
         }
     };
 
-    let mail_relay_handle = tokio::spawn(utils::mailrelay_buid(config.clone()));
+    // Build mail relay
+    let smtp_configs = Arc::new(config.smtp.clone().unwrap_or_default());
+    let smtp_cfg = smtp_configs.clone();
+    let mail_relay_handle = tokio::spawn(utils::mailrelay_buid(smtp_cfg.as_ref().to_owned()));
 
     // Scan projects for Manual jobs
     let api = GitlabJOB::new(&config);
@@ -102,11 +105,12 @@ async fn main() {
         .collect::<Vec<Result<&JobInfo, JobInfo>>>()
         .await;
 
-    info!("All jobs were triggered. Now I'll wait theirs endings...");
+    if actions.len() > 0 {
+        info!("All jobs were triggered. Now I'll wait theirs endings...");
+    }
 
     // Prepare for mail reports
     let mail_relay = Arc::new(mail_relay_handle.await.unwrap_or_default());
-    let smtp_configs = Arc::new(config.smtp.clone().unwrap_or_default());
     let mailing_handlers = Arc::new(Mutex::new(Vec::with_capacity(verified_jobs.len())));
 
     // Which Gitlab status must be waited
@@ -125,7 +129,7 @@ async fn main() {
                     let cronometer = tktime::Instant::now();
                     let max_wait = tktime::Duration::from_secs(config.max_wait_time.unwrap_or(30));
                     let loop_wait_time = tktime::Duration::from_secs(10);
-                    let mail_hands = mailing_handlers.clone();
+                    let mail_hands = Arc::clone(&mailing_handlers);
 
                     loop {
                         let curr_status = &api.get_status(job).await;
@@ -193,7 +197,9 @@ async fn main() {
                             };
                             utils::mail_message(&job, reason, &smtp_configs)
                         }
-                        None => unreachable!("Weird, some new job just appeared from nowhere: {}", job)
+                        None => {
+                            unreachable!("Weird, some new job just appeared from nowhere: {}", job)
+                        }
                     };
 
                     if let Some(mailer) = Option::as_ref(&mail_relay) {
