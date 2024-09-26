@@ -3,12 +3,13 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use gitlabapi::prelude::*;
 use mailsender::prelude::*;
 
-use crate::{Config, MailReason};
+use crate::MailReason;
+use crate::SmtpConfig;
 use log::{error, warn};
 
 /// Build the mail relay
-pub async fn mailrelay_buid(config: Config) -> Option<SmtpTransport> {
-    match &config.smtp {
+pub async fn mailrelay_buid(smtp_config: Option<SmtpConfig>) -> Option<SmtpTransport> {
+    match smtp_config {
         Some(smtp) => match smtp.is_valid() {
             true => match MailSender::try_new(smtp.to_owned()).await {
                 Ok(mailer) => mailer.relay,

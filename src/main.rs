@@ -68,7 +68,8 @@ async fn main() {
         }
     };
 
-    let mail_relay_handle = tokio::spawn(utils::mailrelay_buid(config.clone()));
+    // Build mail relay
+    let mail_relay_handle = tokio::spawn(utils::mailrelay_buid(config.smtp.clone()));
 
     // Scan projects for Manual jobs
     let api = GitlabJOB::new(&config);
