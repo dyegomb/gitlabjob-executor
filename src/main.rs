@@ -35,8 +35,8 @@
 use futures::stream::{self, StreamExt};
 use log::{error, info};
 use std::sync::Arc;
-use tokio::time as tktime;
 use tokio::sync::Mutex;
+use tokio::time as tktime;
 
 use configloader::prelude::*;
 use gitlabapi::prelude::*;
@@ -69,7 +69,9 @@ async fn main() {
     };
 
     // Build mail relay
-    let mail_relay_handle = tokio::spawn(utils::mailrelay_buid(config.smtp.clone()));
+    let smtp_configs = Arc::new(config.smtp.clone().unwrap_or_default());
+    let smtp_cfg = smtp_configs.clone();
+    let mail_relay_handle = tokio::spawn(utils::mailrelay_buid(smtp_cfg.as_ref().to_owned()));
 
     // Scan projects for Manual jobs
     let api = GitlabJOB::new(&config);
@@ -109,7 +111,6 @@ async fn main() {
 
     // Prepare for mail reports
     let mail_relay = Arc::new(mail_relay_handle.await.unwrap_or_default());
-    let smtp_configs = Arc::new(config.smtp.clone().unwrap_or_default());
     let mailing_handlers = Arc::new(Mutex::new(Vec::with_capacity(verified_jobs.len())));
 
     // Which Gitlab status must be waited
@@ -196,7 +197,9 @@ async fn main() {
                             };
                             utils::mail_message(&job, reason, &smtp_configs)
                         }
-                        None => unreachable!("Weird, some new job just appeared from nowhere: {}", job)
+                        None => {
+                            unreachable!("Weird, some new job just appeared from nowhere: {}", job)
+                        }
                     };
 
                     if let Some(mailer) = Option::as_ref(&mail_relay) {
