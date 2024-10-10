@@ -90,16 +90,16 @@ mod integration_tests {
     async fn test_email() {
         init();
 
-        let config = Config::load_config().unwrap();
+        let config = Config::load_config().unwrap().smtp;
 
-        let mail_relay_handle = tokio::spawn(utils::mailrelay_buid(config.clone()));
+        let mail_relay_handle = tokio::spawn(utils::mailrelay_buid(config.clone().unwrap()));
 
         let test_job = JobInfo::default();
 
         let message = utils::mail_message(
             &test_job,
             MailReason::ErrorToPlay,
-            &config.smtp.unwrap_or_default(),
+            &config.unwrap_or_default(),
         );
 
         let mail_relay = mail_relay_handle.await.unwrap_or_default();
