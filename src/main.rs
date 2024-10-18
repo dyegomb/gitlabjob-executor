@@ -102,7 +102,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 true => api.play_job(job),
                 false => api.cancel_job(job),
             })
-        .buffer_unordered(STREAM_BUFF_SIZE)
+            .buffer_unordered(STREAM_BUFF_SIZE)
             .fuse()
             .collect::<Vec<Result<&JobInfo, JobInfo>>>()
             .await;
@@ -113,7 +113,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Prepare for mail reports
         let mail_relay = Rc::new(mail_relay_handle.await.unwrap_or_default());
-        //let mailing_handlers = Rc::new(Mutex::new(Vec::with_capacity(verified_jobs.len())));
 
         // Which Gitlab status must be waited
         let pending_status = [
@@ -123,16 +122,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             JobScope::Manual,
         ];
 
-        
+        let mails_handler = std::cell::RefCell::new(vec![]);
+
         // Stream to monitor jobs' status
         let monitor_jobs = stream::iter(actions)
             .map(|result| async {
                 match result {
                     Ok(job) => {
                         let cronometer = tktime::Instant::now();
-                        let max_wait = tktime::Duration::from_secs(config.max_wait_time.unwrap_or(30));
+                        let max_wait =
+                            tktime::Duration::from_secs(config.max_wait_time.unwrap_or(30));
                         let loop_wait_time = tktime::Duration::from_secs(10);
-                        //let mail_hands = Rc::clone(&mailing_handlers);
 
                         loop {
                             let curr_status = &api.get_status(job).await;
@@ -144,7 +144,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 if let Some(mailer) = Option::as_ref(&mail_relay) {
                                     let msg_reason = match curr_status {
                                         JobScope::Canceled => {
-                                            match &verified_jobs.get(&job).unwrap_or(&(false, None)).1 {
+                                            match &verified_jobs
+                                                .get(&job)
+                                                .unwrap_or(&(false, None))
+                                                .1
+                                            {
                                                 Some(reason) => reason.clone(),
                                                 None => MailReason::Status(*curr_status),
                                             }
@@ -157,16 +161,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                                     let smtp_configs = smtp_configs.clone();
                                     let mailer = mailer.clone();
-                                    //let mut mailing_handlers_arc = mail_hands.lock().await;
 
-                                    let _ = tokio::task::spawn_local(
-                                        async move {
-                                            mailer.send(&utils::mail_message(
-                                                    &job,
-                                                    msg_reason,
-                                                    smtp_configs.as_ref(),
-                                            ))
-                                        }).await;
+                                    let mut handler = mails_handler.borrow_mut();
+                                    handler.push(tokio::task::spawn_local(async move {
+                                        mailer.send(&utils::mail_message(
+                                            &job,
+                                            msg_reason,
+                                            smtp_configs.as_ref(),
+                                        ))
+                                    }));
                                 }
 
                                 info!("Job {} finished with status: {}", job, curr_status);
@@ -179,14 +182,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     let smtp_configs = smtp_configs.clone();
                                     let mailer = mailer.clone();
 
-                                    let _ = tokio::task::spawn_local(
-                                        async move {
-                                            mailer.send(&utils::mail_message(
-                                                    &job,
-                                                    MailReason::MaxWaitElapsed,
-                                                    smtp_configs.as_ref(),
-                                            ))
-                                        }).await;
+                                    let mut handler = mails_handler.borrow_mut();
+                                    handler.push(tokio::task::spawn_local(async move {
+                                        mailer.send(&utils::mail_message(
+                                            &job,
+                                            MailReason::MaxWaitElapsed,
+                                            smtp_configs.as_ref(),
+                                        ))
+                                    }));
                                 }
                                 warn!("Job {} elapsed max waiting time", job);
                                 break;
@@ -204,7 +207,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 utils::mail_message(&job, reason, smtp_configs.as_ref())
                             }
                             None => {
-                                unreachable!("Weird, some new job just appeared from nowhere: {}", job)
+                                unreachable!(
+                                    "Weird, some new job just appeared from nowhere: {}",
+                                    job
+                                )
                             }
                         };
 
@@ -226,21 +232,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
             })
-        .buffer_unordered(STREAM_BUFF_SIZE)
+            .buffer_unordered(STREAM_BUFF_SIZE)
             .fuse();
         tokio::pin!(monitor_jobs);
 
         // Just another way to run streams
         while (monitor_jobs.next().await).is_some() {}
 
-        // Wait for mailing tasks
-        //let mut mailing_handlers_arc = mailing_handlers.lock().await;
-        //let end_mail_handlers = mailing_handlers_arc.iter_mut();
-        //for hand in end_mail_handlers {
-        //    let _ = hand.await;
-        //}
-
-    }
-    );
+        // Wait for mail jobs
+        for handler in mails_handler.borrow_mut().iter_mut() {
+            let _ = handler.await;
+        }
+    });
     Ok(())
 }
