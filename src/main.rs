@@ -36,7 +36,6 @@ use futures::stream::{self, StreamExt};
 use log::{error, info};
 use std::rc::Rc;
 use tokio::runtime;
-use tokio::sync::Mutex;
 use tokio::time as tktime;
 
 use configloader::prelude::*;
@@ -56,7 +55,6 @@ pub enum MailReason {
     Status(JobScope),
 }
 
-//#[tokio::main]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let rt = runtime::Builder::new_current_thread().build()?;
 
@@ -115,7 +113,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Prepare for mail reports
         let mail_relay = Rc::new(mail_relay_handle.await.unwrap_or_default());
-        let mailing_handlers = Rc::new(Mutex::new(Vec::with_capacity(verified_jobs.len())));
+        //let mailing_handlers = Rc::new(Mutex::new(Vec::with_capacity(verified_jobs.len())));
 
         // Which Gitlab status must be waited
         let pending_status = [
@@ -125,6 +123,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             JobScope::Manual,
         ];
 
+        
         // Stream to monitor jobs' status
         let monitor_jobs = stream::iter(actions)
             .map(|result| async {
@@ -133,7 +132,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         let cronometer = tktime::Instant::now();
                         let max_wait = tktime::Duration::from_secs(config.max_wait_time.unwrap_or(30));
                         let loop_wait_time = tktime::Duration::from_secs(10);
-                        let mail_hands = Rc::clone(&mailing_handlers);
+                        //let mail_hands = Rc::clone(&mailing_handlers);
 
                         loop {
                             let curr_status = &api.get_status(job).await;
@@ -158,14 +157,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                                     let smtp_configs = smtp_configs.clone();
                                     let mailer = mailer.clone();
-                                    let mut mailing_handlers_arc = mail_hands.lock().await;
-                                    mailing_handlers_arc.push(tokio::spawn(async move {
-                                        mailer.send(&utils::mail_message(
-                                                &job,
-                                                msg_reason,
-                                                &smtp_configs,
-                                        ))
-                                    }));
+                                    //let mut mailing_handlers_arc = mail_hands.lock().await;
+
+                                    let _ = tokio::task::spawn_local(
+                                        async move {
+                                            mailer.send(&utils::mail_message(
+                                                    &job,
+                                                    msg_reason,
+                                                    smtp_configs.as_ref(),
+                                            ))
+                                        }).await;
                                 }
 
                                 info!("Job {} finished with status: {}", job, curr_status);
@@ -177,14 +178,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     let job = job.clone();
                                     let smtp_configs = smtp_configs.clone();
                                     let mailer = mailer.clone();
-                                    let mut mailing_handlers_arc = mail_hands.lock().await;
-                                    mailing_handlers_arc.push(tokio::spawn(async move {
-                                        mailer.send(&utils::mail_message(
-                                                &job,
-                                                MailReason::MaxWaitElapsed,
-                                                &smtp_configs,
-                                        ))
-                                    }));
+
+                                    let _ = tokio::task::spawn_local(
+                                        async move {
+                                            mailer.send(&utils::mail_message(
+                                                    &job,
+                                                    MailReason::MaxWaitElapsed,
+                                                    smtp_configs.as_ref(),
+                                            ))
+                                        }).await;
                                 }
                                 warn!("Job {} elapsed max waiting time", job);
                                 break;
@@ -199,7 +201,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 } else {
                                     MailReason::ErrorToCancel
                                 };
-                                utils::mail_message(&job, reason, &smtp_configs)
+                                utils::mail_message(&job, reason, smtp_configs.as_ref())
                             }
                             None => {
                                 unreachable!("Weird, some new job just appeared from nowhere: {}", job)
@@ -232,11 +234,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         while (monitor_jobs.next().await).is_some() {}
 
         // Wait for mailing tasks
-        let mut mailing_handlers_arc = mailing_handlers.lock().await;
-        let end_mail_handlers = mailing_handlers_arc.iter_mut();
-        for hand in end_mail_handlers {
-            let _ = hand.await;
-        }
+        //let mut mailing_handlers_arc = mailing_handlers.lock().await;
+        //let end_mail_handlers = mailing_handlers_arc.iter_mut();
+        //for hand in end_mail_handlers {
+        //    let _ = hand.await;
+        //}
 
     }
     );
