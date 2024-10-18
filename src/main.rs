@@ -35,6 +35,7 @@
 use futures::stream::{self, StreamExt};
 use log::{error, info};
 use std::rc::Rc;
+use std::cell::RefCell;
 use tokio::runtime;
 use tokio::time as tktime;
 
@@ -122,7 +123,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             JobScope::Manual,
         ];
 
-        let mails_handler = std::cell::RefCell::new(vec![]);
+        let mails_handler = Rc::new(RefCell::new(vec![]));
 
         // Stream to monitor jobs' status
         let monitor_jobs = stream::iter(actions)
