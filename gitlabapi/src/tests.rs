@@ -152,7 +152,7 @@ mod test_http {
         // let specify_project = 518_u64;
         // let specify_job = 20548_u64;
         let specify_project = 45307263_u64;
-        let specify_job = 4149305002_u64;
+        let specify_job = 8169892267_u64;
 
         let jobinfo = api
             .get_info((ProjectID(specify_project), JobID(specify_job)))
