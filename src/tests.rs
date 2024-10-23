@@ -41,7 +41,7 @@ mod integration_tests {
 
         let json_post = serde_json::json!({
                     "token": token_trigger,
-                    "ref": "master",
+                    "ref": "main",
                     // "variables": {"trigger_email":"teste@test.tst"},
                     // "variables": {"ref_source":"master"},
                     // "variables": {"source_id":config.project_id.unwrap_or(0).to_string()},
