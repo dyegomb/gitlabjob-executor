@@ -9,7 +9,8 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 # tokio = { version = "1", features = ["full"] }
-tokio = { version = "1", default-features = false, features = ["time", "macros", "rt", "rt-multi-thread"] }
+#tokio = { version = "1", default-features = false, features = ["time", "macros", "rt", "rt-multi-thread"] }
+tokio = { version = "1", default-features = false, features = ["time", "macros", "rt"] }
 futures = "0.3"
 log = { version = "0.4", features = ["max_level_debug", "release_max_level_info"] }
 env_logger = "0.10"
