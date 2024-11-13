@@ -57,7 +57,10 @@ pub enum MailReason {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let rt = runtime::Builder::new_current_thread().build()?;
+    let rt = runtime::Builder::new_current_thread()
+        .enable_time()
+        .enable_io()
+        .build()?;
 
     rt.block_on(async {
         // Set default log level to INFO, changed with "RUST_LOG" environment variable
