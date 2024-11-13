@@ -108,7 +108,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .collect::<Vec<Result<&JobInfo, JobInfo>>>()
             .await;
 
-        if actions.len() > 0 {
+        if !actions.is_empty() {
             info!("All jobs were triggered. Now I'll wait theirs endings...");
         }
 
@@ -241,7 +241,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         while (monitor_jobs.next().await).is_some() {}
 
         // Wait for mail jobs
-        for handler in mails_handler.borrow_mut().iter_mut() {
+        for handler in mails_handler.take().iter_mut() {
             let _ = handler.await;
         }
     });
