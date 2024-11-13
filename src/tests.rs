@@ -77,7 +77,7 @@ mod integration_tests {
         let to_cancel = utils::pipelines_tocancel(&response);
         to_cancel.iter().for_each(|(proj, pipes)| {
             debug!(
-                "For project {}, {} pipelines will be canceled",
+                "For project {}, {} jobs will be canceled",
                 proj.0,
                 pipes.len()
             )
