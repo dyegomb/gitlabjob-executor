@@ -48,13 +48,16 @@ pub fn pipelines_tocancel(
     jobs.iter()
         .map(|(proj, jobs)| {
             (*proj, {
-                let mut temp = BinaryHeap::from(jobs
-                    .iter()
-                    .map(|job| PipelineID(job.pipeline_id.unwrap()))
-                    .collect::<Vec<PipelineID>>());
+                let mut temp = BinaryHeap::from(
+                    jobs.iter()
+                        .map(|job| PipelineID(job.pipeline_id.unwrap()))
+                        .collect::<Vec<PipelineID>>(),
+                );
                 let higher = temp.peek().cloned();
                 if let Some(higher) = higher {
-                    temp.drain().filter(|a| a != &higher).collect::<Vec<PipelineID>>()
+                    temp.drain()
+                        .filter(|a| a != &higher)
+                        .collect::<Vec<PipelineID>>()
                 } else {
                     Vec::with_capacity(0)
                 }

@@ -34,8 +34,8 @@
 
 use futures::stream::{self, StreamExt};
 use log::{error, info};
-use std::rc::Rc;
 use std::cell::RefCell;
+use std::rc::Rc;
 use tokio::runtime;
 use tokio::time as tktime;
 
@@ -60,7 +60,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let rt = runtime::Builder::new_current_thread().build()?;
 
     rt.block_on(async {
-        // Set default log level for INFO, changed with "RUST_LOG" environment variable
+        // Set default log level to INFO, changed with "RUST_LOG" environment variable
         env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
         let config = match Config::load_config() {
@@ -108,7 +108,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .collect::<Vec<Result<&JobInfo, JobInfo>>>()
             .await;
 
-        if actions.len() > 0 {
+        if !actions.is_empty() {
             info!("All jobs were triggered. Now I'll wait theirs endings...");
         }
 
@@ -241,7 +241,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         while (monitor_jobs.next().await).is_some() {}
 
         // Wait for mail jobs
-        for handler in mails_handler.borrow_mut().iter_mut() {
+        for handler in mails_handler.take().iter_mut() {
             let _ = handler.await;
         }
     });
