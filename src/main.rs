@@ -34,8 +34,8 @@
 
 use futures::stream::{self, StreamExt};
 use log::{error, info};
-use std::rc::Rc;
 use std::cell::RefCell;
+use std::rc::Rc;
 use tokio::runtime;
 use tokio::time as tktime;
 
