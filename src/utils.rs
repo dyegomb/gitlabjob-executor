@@ -8,18 +8,20 @@ use crate::SmtpConfig;
 use log::{error, warn};
 
 /// Build the mail relay
-pub async fn mailrelay_buid(smtp_config: SmtpConfig) -> Option<SmtpTransport> {
+pub async fn mailrelay_build(smtp_config: SmtpConfig) -> Option<SmtpTransport> {
     match smtp_config.is_valid() {
         true => match MailSender::try_new(smtp_config.to_owned()).await {
-            Ok(mailer) => mailer.relay,
+            Ok(mailer) => { 
+                debug!("Building mail relay");
+                mailer.relay 
+            },
             Err(error) => {
                 error!("{}", error);
                 return None;
             }
         },
         false => None,
-    };
-    None
+    }
 }
 
 /// Build mail message facilitator
@@ -35,13 +37,13 @@ pub fn mail_message(job: &JobInfo, reason: MailReason, builder: &SmtpConfig) -> 
         MailReason::Status(status) => format!("Status of job {}: {}", job, status),
     };
 
-    let to_binding = builder.to.clone();
+    let binding = builder.to.clone();
     let to = match &job.user_mail {
-        Some(to) => match &to_binding {
+        Some(to) => match &binding {
             None => Some(to.to_string()),
             Some(to_inc) => Some(format!("{to}; {to_inc}")),
         },
-        None => to_binding,
+        None => binding,
     };
 
     debug!("Sending mail to {:?}", &to);
