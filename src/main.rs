@@ -34,9 +34,9 @@
 
 use futures::stream::{self, StreamExt};
 use log::{error, info};
-use std::cell::RefCell;
 use std::rc::Rc;
 use tokio::runtime;
+use tokio::sync::Mutex;
 use tokio::time as tktime;
 
 use configloader::prelude::*;
@@ -126,7 +126,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             JobScope::Manual,
         ];
 
-        let mails_handler = Rc::new(RefCell::new(vec![]));
+        let mails_handler = Rc::new(Mutex::new(vec![]));
 
         // Stream to monitor jobs' status
         let monitor_jobs = stream::iter(actions)
@@ -166,7 +166,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     let smtp_configs = smtp_configs.clone();
                                     let mailer = mailer.clone();
 
-                                    let mut handler = mails_handler.borrow_mut();
+                                    let bindings = mails_handler.clone();
+                                    let mut handler = bindings.lock().await;
                                     handler.push(tokio::task::spawn_local(async move {
                                         mailer.send(&utils::mail_message(
                                             &job,
@@ -186,7 +187,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     let smtp_configs = smtp_configs.clone();
                                     let mailer = mailer.clone();
 
-                                    let mut handler = mails_handler.borrow_mut();
+                                    let bindings = mails_handler.clone();
+                                    let mut handler = bindings.lock().await;
                                     handler.push(tokio::task::spawn_local(async move {
                                         mailer.send(&utils::mail_message(
                                             &job,
@@ -244,7 +246,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         while (monitor_jobs.next().await).is_some() {}
 
         // Wait for mail jobs
-        for handler in mails_handler.take().iter_mut() {
+        let bindings = mails_handler.clone();
+        let mut handlers = bindings.lock().await;
+        for handler in handlers.iter_mut() {
             let _ = handler.await;
         }
     });
