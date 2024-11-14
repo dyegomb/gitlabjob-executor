@@ -11,10 +11,10 @@ use log::{error, warn};
 pub async fn mailrelay_build(smtp_config: SmtpConfig) -> Option<SmtpTransport> {
     match smtp_config.is_valid() {
         true => match MailSender::try_new(smtp_config.to_owned()).await {
-            Ok(mailer) => { 
+            Ok(mailer) => {
                 debug!("Building mail relay");
-                mailer.relay 
-            },
+                mailer.relay
+            }
             Err(error) => {
                 error!("{}", error);
                 return None;

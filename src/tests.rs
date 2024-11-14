@@ -92,7 +92,7 @@ mod integration_tests {
 
         let config = Config::load_config().unwrap().smtp;
 
-        let mail_relay_handle = tokio::spawn(utils::mailrelay_buid(config.clone().unwrap()));
+        let mail_relay_handle = tokio::spawn(utils::mailrelay_build(config.clone().unwrap()));
 
         let test_job = JobInfo::default();
 

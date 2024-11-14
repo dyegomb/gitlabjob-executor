@@ -77,15 +77,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let smtp_configs = Rc::new(config.smtp.clone().unwrap_or_default());
         let smtp_cfg = Rc::clone(&smtp_configs);
 
-        /*
-        let localset = tokio::task::LocalSet::new();
-        let mail_relay_handle = localset
-            .run_until(utils::mailrelay_build(smtp_cfg.as_ref().to_owned()))
-            .await;
-        */
-        //mail_relay_handle = tokio::task::spawn_local(utils::mailrelay_buid(smtp_cfg.as_ref().to_owned()));
-        let mail_relay_handle = utils::mailrelay_build(smtp_cfg.as_ref().to_owned()).await;
-        //let mail_relay = Rc::new(&mail_relay_handle);
+        let mail_relay_handle =
+            tokio::task::spawn(utils::mailrelay_build(smtp_cfg.as_ref().to_owned()));
 
         // Scan projects for Manual jobs
         let api = GitlabJOB::new(&config);
@@ -124,22 +117,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         // Prepare for mail reports
-        //let mail_relay = Rc::new(mail_relay_handle.await.unwrap_or_default());
-        //let mail_relay = match mail_relay_handle.await {
-        //    Ok(mailer) => {
-        //        debug!("Mail relay built");
-        //        mailer
-        //    },
-        //    Err(e) => {
-        //        error!("Error setting up mail relay: {}", e);
-        //        None
-        //    }
-        //};
-        let mail_relay = Rc::new(mail_relay_handle);
-        if mail_relay.is_some() {
-            debug!("Mail relay built")
-        } else {
-            warn!("No mail will be sent")
+        let mail_relay = match mail_relay_handle.await {
+            Ok(mailer) => {
+                debug!("Mail relay built");
+                mailer
+            }
+            Err(e) => {
+                error!("Error setting up mail relay: {}", e);
+                None
+            }
         };
 
         // Which Gitlab status must be waited
