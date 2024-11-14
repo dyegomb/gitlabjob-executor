@@ -17,7 +17,7 @@ pub async fn mailrelay_build(smtp_config: SmtpConfig) -> Option<SmtpTransport> {
             }
             Err(error) => {
                 error!("{}", error);
-                return None;
+                None
             }
         },
         false => None,
