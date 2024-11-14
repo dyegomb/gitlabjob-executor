@@ -77,7 +77,7 @@ mod integration_tests {
         let to_cancel = utils::pipelines_tocancel(&response);
         to_cancel.iter().for_each(|(proj, pipes)| {
             debug!(
-                "For project {}, {} pipelines will be canceled",
+                "For project {}, {} jobs will be canceled",
                 proj.0,
                 pipes.len()
             )
@@ -92,7 +92,7 @@ mod integration_tests {
 
         let config = Config::load_config().unwrap().smtp;
 
-        let mail_relay_handle = tokio::spawn(utils::mailrelay_buid(config.clone().unwrap()));
+        let mail_relay_handle = tokio::spawn(utils::mailrelay_build(config.clone().unwrap()));
 
         let test_job = JobInfo::default();
 

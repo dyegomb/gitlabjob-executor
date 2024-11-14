@@ -34,7 +34,6 @@
 
 use futures::stream::{self, StreamExt};
 use log::{error, info};
-use std::cell::RefCell;
 use std::rc::Rc;
 use tokio::runtime;
 use tokio::time as tktime;
@@ -76,8 +75,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Build mail relay
         let smtp_configs = Rc::new(config.smtp.clone().unwrap_or_default());
-        let smtp_cfg = smtp_configs.clone();
-        let mail_relay_handle = tokio::spawn(utils::mailrelay_buid(smtp_cfg.as_ref().to_owned()));
+        let smtp_cfg = Rc::clone(&smtp_configs);
+
+        let mail_relay_handle =
+            tokio::task::spawn(utils::mailrelay_build(smtp_cfg.as_ref().to_owned()));
 
         // Scan projects for Manual jobs
         let api = GitlabJOB::new(&config);
@@ -116,7 +117,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         // Prepare for mail reports
-        let mail_relay = Rc::new(mail_relay_handle.await.unwrap_or_default());
+        let mail_relay = match mail_relay_handle.await {
+            Ok(mailer) => {
+                debug!("Mail relay built");
+                mailer
+            }
+            Err(e) => {
+                error!("Error setting up mail relay: {}", e);
+                None
+            }
+        };
 
         // Which Gitlab status must be waited
         let pending_status = [
@@ -125,8 +135,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             JobScope::WaitingForResource,
             JobScope::Manual,
         ];
-
-        let mails_handler = Rc::new(RefCell::new(vec![]));
 
         // Stream to monitor jobs' status
         let monitor_jobs = stream::iter(actions)
@@ -166,14 +174,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     let smtp_configs = smtp_configs.clone();
                                     let mailer = mailer.clone();
 
-                                    let mut handler = mails_handler.borrow_mut();
-                                    handler.push(tokio::task::spawn_local(async move {
-                                        mailer.send(&utils::mail_message(
-                                            &job,
-                                            msg_reason,
-                                            smtp_configs.as_ref(),
-                                        ))
-                                    }));
+                                    match mailer.send(&utils::mail_message(
+                                        &job,
+                                        msg_reason,
+                                        smtp_configs.as_ref(),
+                                    )) {
+                                        Ok(_) => debug!("Message for job {} sent", &job),
+                                        Err(_) => {
+                                            error!("Erro while sneding message for job {}", &job)
+                                        }
+                                    };
                                 }
 
                                 info!("Job {} finished with status: {}", job, curr_status);
@@ -186,14 +196,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     let smtp_configs = smtp_configs.clone();
                                     let mailer = mailer.clone();
 
-                                    let mut handler = mails_handler.borrow_mut();
-                                    handler.push(tokio::task::spawn_local(async move {
-                                        mailer.send(&utils::mail_message(
-                                            &job,
-                                            MailReason::MaxWaitElapsed,
-                                            smtp_configs.as_ref(),
-                                        ))
-                                    }));
+                                    let _ = mailer.send(&utils::mail_message(
+                                        &job,
+                                        MailReason::MaxWaitElapsed,
+                                        smtp_configs.as_ref(),
+                                    ));
+                                    match mailer.send(&utils::mail_message(
+                                        &job,
+                                        MailReason::MaxWaitElapsed,
+                                        smtp_configs.as_ref(),
+                                    )) {
+                                        Ok(_) => debug!("Message for job {} sent", &job),
+                                        Err(_) => {
+                                            error!("Erro while sneding message for job {}", &job)
+                                        }
+                                    };
                                 }
                                 warn!("Job {} elapsed max waiting time", job);
                                 break;
@@ -242,11 +259,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Just another way to run streams
         while (monitor_jobs.next().await).is_some() {}
-
-        // Wait for mail jobs
-        for handler in mails_handler.take().iter_mut() {
-            let _ = handler.await;
-        }
     });
+    debug!("Bye!");
     Ok(())
 }

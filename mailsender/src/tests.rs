@@ -90,7 +90,7 @@ This is a <b>test message</b>. :-)
         debug!("{:?}", mail_message);
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "current_thread")]
     #[ignore = "It'll really send an email message"]
     async fn test_send_mail() {
         init();
