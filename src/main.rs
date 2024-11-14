@@ -36,7 +36,6 @@ use futures::stream::{self, StreamExt};
 use log::{error, info};
 use std::rc::Rc;
 use tokio::runtime;
-use tokio::sync::Mutex;
 use tokio::time as tktime;
 
 use configloader::prelude::*;
@@ -126,8 +125,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             JobScope::Manual,
         ];
 
-        let mails_handler = Rc::new(Mutex::new(vec![]));
-
         // Stream to monitor jobs' status
         let monitor_jobs = stream::iter(actions)
             .map(|result| async {
@@ -166,15 +163,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     let smtp_configs = smtp_configs.clone();
                                     let mailer = mailer.clone();
 
-                                    let bindings = mails_handler.clone();
-                                    let mut handler = bindings.lock().await;
-                                    handler.push(tokio::task::spawn_local(async move {
-                                        mailer.send(&utils::mail_message(
-                                            &job,
-                                            msg_reason,
-                                            smtp_configs.as_ref(),
-                                        ))
-                                    }));
+                                    let _ = mailer.send(&utils::mail_message(
+                                        &job,
+                                        msg_reason,
+                                        smtp_configs.as_ref(),
+                                    ));
                                 }
 
                                 info!("Job {} finished with status: {}", job, curr_status);
@@ -187,15 +180,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     let smtp_configs = smtp_configs.clone();
                                     let mailer = mailer.clone();
 
-                                    let bindings = mails_handler.clone();
-                                    let mut handler = bindings.lock().await;
-                                    handler.push(tokio::task::spawn_local(async move {
-                                        mailer.send(&utils::mail_message(
-                                            &job,
-                                            MailReason::MaxWaitElapsed,
-                                            smtp_configs.as_ref(),
-                                        ))
-                                    }));
+                                    let _ = mailer.send(&utils::mail_message(
+                                        &job,
+                                        MailReason::MaxWaitElapsed,
+                                        smtp_configs.as_ref(),
+                                    ));
                                 }
                                 warn!("Job {} elapsed max waiting time", job);
                                 break;
@@ -244,13 +233,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Just another way to run streams
         while (monitor_jobs.next().await).is_some() {}
-
-        // Wait for mail jobs
-        let bindings = mails_handler.clone();
-        let mut handlers = bindings.lock().await;
-        for handler in handlers.iter_mut() {
-            let _ = handler.await;
-        }
     });
     Ok(())
 }

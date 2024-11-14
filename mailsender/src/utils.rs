@@ -29,7 +29,7 @@ pub trait SmtpUtils {
         &self,
         subject: String,
         message: String,
-        destination: &Option<String>,
+        destination: Option<String>,
     ) -> Message;
 }
 
@@ -38,7 +38,7 @@ impl SmtpUtils for SmtpConfig {
         &self,
         subject: String,
         message: String,
-        destination: &Option<String>,
+        destination: Option<String>,
     ) -> Message {
         if !self.is_valid() {
             error!("Smtp configuration is invalid");
