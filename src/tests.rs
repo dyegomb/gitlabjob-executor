@@ -45,7 +45,8 @@ mod integration_tests {
                     // "variables": {"trigger_email":"teste@test.tst"},
                     // "variables": {"ref_source":"master"},
                     // "variables": {"source_id":config.project_id.unwrap_or(0).to_string()},
-                    "variables": {"PROD_TAG": "PROD-test-1.0.0"},
+                    "variables": {"PROD_TAG": "Test-test-1.0.0",
+                        "trigger_email":"teste@test.tst"},
                 }
         );
 
