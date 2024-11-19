@@ -97,7 +97,10 @@ mod integration_tests {
 
         let mail_relay_handle = tokio::spawn(utils::mailrelay_build(config.clone().unwrap()));
 
-        let test_job = JobInfo{user_mail: Some("test@test.tst".to_string()), ..Default::default() };
+        let test_job = JobInfo {
+            user_mail: Some("test@test.tst".to_string()),
+            ..Default::default()
+        };
 
         let message = utils::mail_message(
             &test_job,
