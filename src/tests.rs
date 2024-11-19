@@ -47,7 +47,7 @@ mod integration_tests {
                     // "variables": {"source_id":config.project_id.unwrap_or(0).to_string()},
                     "variables": {
                         "PROD_TAG": "Test-tag",
-                        "trigger_email":"teste@test.tst"
+                        "trigger_email":"test@test.tst"
                     },
                 }
         );
@@ -97,7 +97,9 @@ mod integration_tests {
 
         let mail_relay_handle = tokio::spawn(utils::mailrelay_build(config.clone().unwrap()));
 
-        let test_job = JobInfo::default();
+        let mut test_job = JobInfo::default();
+
+        test_job.user_mail = Some("test@test.tst".to_string());
 
         let message = utils::mail_message(
             &test_job,
