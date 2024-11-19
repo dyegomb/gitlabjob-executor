@@ -17,7 +17,7 @@ pub async fn mailrelay_build(smtp_config: SmtpConfig) -> Option<SmtpTransport> {
             }
             Err(error) => {
                 error!("{}", error);
-                return None;
+                None
             }
         },
         false => None,
@@ -37,14 +37,7 @@ pub fn mail_message(job: &JobInfo, reason: MailReason, builder: &SmtpConfig) -> 
         MailReason::Status(status) => format!("Status of job {}: {}", job, status),
     };
 
-    let binding = builder.to.clone();
-    let to = match &job.user_mail {
-        Some(to) => match &binding {
-            None => Some(to.to_string()),
-            Some(to_inc) => Some(format!("{to}; {to_inc}")),
-        },
-        None => binding,
-    };
+    let to = job.user_mail.clone();
 
     debug!("Sending mail to {:?}", &to);
 
