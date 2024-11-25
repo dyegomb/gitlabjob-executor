@@ -2,16 +2,17 @@ use reqwest::header::{HeaderMap, HeaderValue};
 
 use crate::prelude::*;
 
+#[non_exhaustive]
 pub enum HttpMethod {
-    // Options,
+    Options,
     Get,
     Post,
-    // Put,
-    // Delete,
-    // Head,
-    // Trace,
-    // Connect,
-    // Patch,
+    Put,
+    Delete,
+    Head,
+    Trace,
+    Connect,
+    Patch,
 }
 
 impl GitlabJOB {
@@ -20,15 +21,9 @@ impl GitlabJOB {
 
         match self.api_builder().build() {
             Ok(http_client) => match method {
-                // HttpMethod::Options => http_client.request(reqwest::Method::OPTIONS, uri),
                 HttpMethod::Get => http_client.request(reqwest::Method::GET, uri),
                 HttpMethod::Post => http_client.request(reqwest::Method::POST, uri),
-                // HttpMethod::Put => http_client.request(reqwest::Method::PUT, uri),
-                // HttpMethod::Delete => http_client.request(reqwest::Method::DELETE, uri),
-                // HttpMethod::Head => http_client.request(reqwest::Method::HEAD, uri),
-                // HttpMethod::Trace => http_client.request(reqwest::Method::TRACE, uri),
-                // HttpMethod::Connect => http_client.request(reqwest::Method::CONNECT, uri),
-                // HttpMethod::Patch => http_client.request(reqwest::Method::PATCH, uri),
+                _ => http_client.request(reqwest::Method::GET, uri),
             },
 
             Err(error) => {
