@@ -9,8 +9,8 @@ use log::{error, warn};
 
 /// Build the mail relay
 pub async fn mailrelay_build(smtp_config: SmtpConfig) -> Option<SmtpTransport> {
-    match smtp_config.is_valid() {
-        true => match MailSender::try_new(smtp_config.to_owned()).await {
+    if smtp_config.is_valid() {
+        match MailSender::try_new(smtp_config.clone()).await {
             Ok(mailer) => {
                 debug!("Building mail relay");
                 mailer.relay
@@ -19,13 +19,13 @@ pub async fn mailrelay_build(smtp_config: SmtpConfig) -> Option<SmtpTransport> {
                 error!("{}", error);
                 None
             }
-        },
-        false => None,
+        }
     }
+    else { None }
 }
 
 /// Build mail message facilitator
-pub fn mail_message(job: &JobInfo, reason: MailReason, builder: &SmtpConfig) -> Message {
+pub fn mail_message(job: &JobInfo, reason: &MailReason, builder: &SmtpConfig) -> Message {
     let subject = match reason {
         MailReason::Duplicated => {
             format!("Job {} canceled due to duplicated pipeline", job)
@@ -57,14 +57,10 @@ pub fn pipelines_tocancel(
                         .map(|job| PipelineID(job.pipeline_id.unwrap()))
                         .collect::<Vec<PipelineID>>(),
                 );
-                let higher = temp.peek().cloned();
-                if let Some(higher) = higher {
-                    temp.drain()
-                        .filter(|a| a != &higher)
-                        .collect::<Vec<PipelineID>>()
-                } else {
-                    Vec::with_capacity(0)
-                }
+                let higher = temp.peek().copied();
+                higher.map_or_else(|| Vec::with_capacity(0), |higher| temp.drain()
+                    .filter(|a| a != &higher)
+                    .collect::<Vec<PipelineID>>())
             })
         })
         .for_each(|(key, vec)| {
@@ -84,9 +80,7 @@ pub async fn validate_jobs<'a>(
 
     for (proj, jobs) in proj_jobs {
         for job in jobs {
-            if pipes_tocancel
-                .get(proj)
-                .unwrap()
+            if pipes_tocancel[proj]
                 .contains(&PipelineID(job.pipeline_id.unwrap()))
             {
                 warn!(
@@ -97,9 +91,6 @@ pub async fn validate_jobs<'a>(
                 continue;
             }
             match (job.source_id, &job.git_tag) {
-                (None, None) => {
-                    checked_jobs.insert(job, (true, None));
-                }
                 (None, Some(tag)) => {
                     let proj_tags = api.get_tags(*proj).await;
                     if proj_tags.contains(tag) {
@@ -118,7 +109,7 @@ pub async fn validate_jobs<'a>(
                         warn!("The job {} will be cancelled due to invalid tag.", job);
                     }
                 }
-                (Some(_), None) => {
+                (Some(_), None) | (None, None) => {
                     checked_jobs.insert(job, (true, None));
                 }
             }
