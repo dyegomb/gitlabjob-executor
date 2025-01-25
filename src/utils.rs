@@ -20,8 +20,9 @@ pub async fn mailrelay_build(smtp_config: SmtpConfig) -> Option<SmtpTransport> {
                 None
             }
         }
+    } else {
+        None
     }
-    else { None }
 }
 
 /// Build mail message facilitator
@@ -58,9 +59,14 @@ pub fn pipelines_tocancel(
                         .collect::<Vec<PipelineID>>(),
                 );
                 let higher = temp.peek().copied();
-                higher.map_or_else(|| Vec::with_capacity(0), |higher| temp.drain()
-                    .filter(|a| a != &higher)
-                    .collect::<Vec<PipelineID>>())
+                higher.map_or_else(
+                    || Vec::with_capacity(0),
+                    |higher| {
+                        temp.drain()
+                            .filter(|a| a != &higher)
+                            .collect::<Vec<PipelineID>>()
+                    },
+                )
             })
         })
         .for_each(|(key, vec)| {
@@ -80,9 +86,7 @@ pub async fn validate_jobs<'a>(
 
     for (proj, jobs) in proj_jobs {
         for job in jobs {
-            if pipes_tocancel[proj]
-                .contains(&PipelineID(job.pipeline_id.unwrap_or_default()))
-            {
+            if pipes_tocancel[proj].contains(&PipelineID(job.pipeline_id.unwrap_or_default())) {
                 warn!(
                     "The job {} will be canceled due to duplicated pipelines",
                     job
