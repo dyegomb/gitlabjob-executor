@@ -128,8 +128,8 @@ fn main() -> Result<(), Box<dyn core::error::Error>> {
                 debug!("Mail relay built");
                 mailer
             }
-            Err(e) => {
-                error!("Error setting up mail relay: {}", e);
+            Err(error) => {
+                error!("Error setting up mail relay: {}", error);
                 None
             }
         };
@@ -162,14 +162,6 @@ fn main() -> Result<(), Box<dyn core::error::Error>> {
                                 if let Some(mailer) = Option::as_ref(&mail_relay) {
                                     let msg_reason = match *curr_status {
                                         JobScope::Canceled => {
-                                            //match &verified_jobs
-                                            //    .get(&job)
-                                            //    .unwrap_or(&(false, None))
-                                            //    .1
-                                            //{
-                                            //    Some(reason) => reason.clone(),
-                                            //    None => MailReason::Status(*curr_status),
-                                            //}
                                             verified_jobs
                                                 .get(&job)
                                                 .unwrap_or(&(false, None))
@@ -177,7 +169,7 @@ fn main() -> Result<(), Box<dyn core::error::Error>> {
                                                 .as_ref()
                                                 .map_or(
                                                     MailReason::Status(*curr_status),
-                                                    |reason| reason.clone(),
+                                                    core::clone::Clone::clone
                                                 )
                                         }
                                         _ => MailReason::Status(*curr_status),
@@ -186,7 +178,8 @@ fn main() -> Result<(), Box<dyn core::error::Error>> {
                                     let mut job = job.clone();
                                     job.status = Some(*curr_status);
 
-                                    let smtp_configs = smtp_configs.clone();
+                                    //let smtp_configs = smtp_configs.clone();
+                                    let smtp_configs = Rc::<configloader::SmtpConfig>::clone(&smtp_configs);
                                     let mailer = mailer.clone();
 
                                     match mailer.send(&utils::mail_message(
@@ -234,22 +227,6 @@ fn main() -> Result<(), Box<dyn core::error::Error>> {
                         }
                     }
                     Err(job) => {
-                        //let message = match verified_jobs.get(&job) {
-                        //    Some(context) => {
-                        //        let reason = if context.0 {
-                        //            MailReason::ErrorToPlay
-                        //        } else {
-                        //            MailReason::ErrorToCancel
-                        //        };
-                        //        utils::mail_message(&job, &reason, smtp_configs.as_ref())
-                        //    }
-                        //    None => {
-                        //        unreachable!(
-                        //            "Weird, some new job just appeared from nowhere: {}",
-                        //            job
-                        //        )
-                        //    }
-                        //};
                         let message = verified_jobs.get(&job).map_or_else(
                             || {
                                 unreachable!(
@@ -290,6 +267,7 @@ fn main() -> Result<(), Box<dyn core::error::Error>> {
         tokio::pin!(monitor_jobs);
 
         // Just another way to run streams
+        debug!("Wait emails sendings.");
         while (monitor_jobs.next().await).is_some() {}
     });
     debug!("Bye!");

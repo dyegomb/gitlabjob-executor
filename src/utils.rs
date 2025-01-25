@@ -51,19 +51,19 @@ pub fn pipelines_tocancel(
 ) -> HashMap<ProjectID, Vec<PipelineID>> {
     let mut pipelines_tocancel = HashMap::new();
     jobs.iter()
-        .map(|(proj, jobs)| {
+        .map(|(proj, jobs_)| {
             (*proj, {
                 let mut temp = BinaryHeap::from(
-                    jobs.iter()
+                    jobs_.iter()
                         .map(|job| PipelineID(job.pipeline_id.unwrap()))
                         .collect::<Vec<PipelineID>>(),
                 );
                 let higher = temp.peek().copied();
                 higher.map_or_else(
                     || Vec::with_capacity(0),
-                    |higher| {
+                    |higher_| {
                         temp.drain()
-                            .filter(|a| a != &higher)
+                            .filter(|id| id != &higher_)
                             .collect::<Vec<PipelineID>>()
                     },
                 )
@@ -77,10 +77,10 @@ pub fn pipelines_tocancel(
 }
 
 /// Check if the job must be canceled or played
-pub async fn validate_jobs<'a>(
+pub async fn validate_jobs<'job_info>(
     api: &GitlabJOB,
-    proj_jobs: &'a HashMap<ProjectID, HashSet<JobInfo>>,
-) -> HashMap<&'a JobInfo, (bool, Option<MailReason>)> {
+    proj_jobs: &'job_info HashMap<ProjectID, HashSet<JobInfo>>,
+) -> HashMap<&'job_info JobInfo, (bool, Option<MailReason>)> {
     let pipes_tocancel = pipelines_tocancel(proj_jobs);
     let mut checked_jobs = HashMap::new();
 

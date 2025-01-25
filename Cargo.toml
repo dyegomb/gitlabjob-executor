@@ -4,6 +4,8 @@ version = "1.2.0"
 edition = "2021"
 authors = ["Dyego <dyegomb@gmail.com"]
 license = "MIT OR Apache-2.0"
+description = "Starts manual jobs with gitlab api"
+repository = "https://gitlab.com/dyegomb/gitlabjob"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -65,11 +67,18 @@ style        = { priority = -1, level = "deny" }
 suspicious   = { priority = -1, level = "deny" }
 
 # allow the following
+absolute_paths                      = "allow"   
+arbitrary_source_item_ordering      = "allow"   
 blanket_clippy_restriction_lints    = "allow"   # clippy in extreme mode so yes, we want this ;)
+cargo-ignore-publish                = "allow"   
 implicit_return                     = "allow"   # use implicit return
+iter_over_hash_type                 = "allow"   
+missing_docs_in_private_items       = "allow"   
 multiple_crate_versions             = "allow"   # cannot control our dependencies
 question_mark_used                  = "allow"   # use the question mark operator
 shadow_reuse                        = "allow"   # Allow variable shadowings
+single_call_fn                      = "allow"   
+std_instead_of_alloc                = "allow"   
 
 [profile.release]
 codegen-units = 1

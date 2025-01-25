@@ -13,3 +13,6 @@ serde = { workspace = true }
 log = { workspace = true }
 env_logger = { workspace = true }
 lettre = { workspace = true }
+
+[lints.clippy]
+cargo-ignore-publish = "allow"   
