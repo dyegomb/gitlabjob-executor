@@ -17,3 +17,6 @@ configloader = { path = "../configloader"}
 
 [dev-dependencies]
 env_logger = "0.10"
+
+[lints.clippy]
+cargo-ignore-publish = "allow"   

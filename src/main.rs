@@ -31,10 +31,14 @@
 //! The SMTP section is only needed if you want to receive report emails.
 //! SMTP settings from environment variables must has `SMTP_` prefix.
 //!
+extern crate alloc;
 
-use futures::stream::{self, StreamExt};
+mod tests;
+mod utils;
+
+use alloc::rc::Rc;
+use futures::stream::{self, StreamExt as _};
 use log::{error, info};
-use std::rc::Rc;
 use tokio::runtime;
 use tokio::time as tktime;
 
@@ -42,9 +46,7 @@ use configloader::prelude::*;
 use gitlabapi::prelude::*;
 use mailsender::prelude::*;
 
-mod tests;
-mod utils;
-
+#[non_exhaustive]
 #[derive(Debug, Clone)]
 pub enum MailReason {
     Duplicated,
@@ -55,7 +57,7 @@ pub enum MailReason {
     Status(JobScope),
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn core::error::Error>> {
     let rt = runtime::Builder::new_current_thread()
         .enable_time()
         .enable_io()
@@ -85,13 +87,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let proj_jobs = match config.group_id {
             Some(group_id) => api.get_jobs(GroupID(group_id), JobScope::Manual).await,
-            None => match config.project_id {
-                Some(proj_id) => api.get_jobs(ProjectID(proj_id), JobScope::Manual).await,
-                None => {
+            None => {
+                if let Some(proj_id) = config.project_id {
+                    api.get_jobs(ProjectID(proj_id), JobScope::Manual).await
+                } else {
                     error!("There's no project to scan for jobs.");
                     std::process::exit(2)
                 }
-            },
+            }
         };
 
         log::info!(
@@ -103,9 +106,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let verified_jobs = utils::validate_jobs(&api, &proj_jobs).await;
 
         let actions = stream::iter(&verified_jobs)
-            .map(|(job, context)| match context.0 {
-                true => api.play_job(job),
-                false => api.cancel_job(job),
+            .map(|(job, context)| {
+                if context.0 {
+                    api.play_job(job)
+                } else {
+                    api.cancel_job(job)
+                }
             })
             .buffer_unordered(STREAM_BUFF_SIZE)
             .fuse()
@@ -122,8 +128,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 debug!("Mail relay built");
                 mailer
             }
-            Err(e) => {
-                error!("Error setting up mail relay: {}", e);
+            Err(error) => {
+                error!("Error setting up mail relay: {}", error);
                 None
             }
         };
@@ -154,16 +160,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 debug!("Waiting for job {}", job);
                             } else {
                                 if let Some(mailer) = Option::as_ref(&mail_relay) {
-                                    let msg_reason = match curr_status {
+                                    let msg_reason = match *curr_status {
                                         JobScope::Canceled => {
-                                            match &verified_jobs
+                                            verified_jobs
                                                 .get(&job)
                                                 .unwrap_or(&(false, None))
                                                 .1
-                                            {
-                                                Some(reason) => reason.clone(),
-                                                None => MailReason::Status(*curr_status),
-                                            }
+                                                .as_ref()
+                                                .map_or(
+                                                    MailReason::Status(*curr_status),
+                                                    core::clone::Clone::clone
+                                                )
                                         }
                                         _ => MailReason::Status(*curr_status),
                                     };
@@ -171,17 +178,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     let mut job = job.clone();
                                     job.status = Some(*curr_status);
 
-                                    let smtp_configs = smtp_configs.clone();
+                                    //let smtp_configs = smtp_configs.clone();
+                                    let smtp_configs = Rc::<configloader::SmtpConfig>::clone(&smtp_configs);
                                     let mailer = mailer.clone();
 
                                     match mailer.send(&utils::mail_message(
                                         &job,
-                                        msg_reason,
+                                        &msg_reason,
                                         smtp_configs.as_ref(),
                                     )) {
                                         Ok(_) => debug!("Message for job {} sent", &job),
                                         Err(_) => {
-                                            error!("Erro while sneding message for job {}", &job)
+                                            error!("Erro while sneding message for job {}", &job);
                                         }
                                     };
                                 }
@@ -193,22 +201,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             if cronometer.elapsed() >= max_wait {
                                 if let Some(mailer) = Option::as_ref(&mail_relay) {
                                     let job = job.clone();
-                                    let smtp_configs = smtp_configs.clone();
+                                    let smtp_configs =
+                                        Rc::<configloader::SmtpConfig>::clone(&smtp_configs);
                                     let mailer = mailer.clone();
 
                                     let _ = mailer.send(&utils::mail_message(
                                         &job,
-                                        MailReason::MaxWaitElapsed,
+                                        &MailReason::MaxWaitElapsed,
                                         smtp_configs.as_ref(),
                                     ));
                                     match mailer.send(&utils::mail_message(
                                         &job,
-                                        MailReason::MaxWaitElapsed,
+                                        &MailReason::MaxWaitElapsed,
                                         smtp_configs.as_ref(),
                                     )) {
                                         Ok(_) => debug!("Message for job {} sent", &job),
                                         Err(_) => {
-                                            error!("Erro while sneding message for job {}", &job)
+                                            error!("Erro while sneding message for job {}", &job);
                                         }
                                     };
                                 }
@@ -218,22 +227,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     }
                     Err(job) => {
-                        let message = match verified_jobs.get(&job) {
-                            Some(context) => {
+                        let message = verified_jobs.get(&job).map_or_else(
+                            || {
+                                unreachable!(
+                                    "Weird, some new job just appeared from nowhere: {}",
+                                    job
+                                )
+                            },
+                            |context| {
                                 let reason = if context.0 {
                                     MailReason::ErrorToPlay
                                 } else {
                                     MailReason::ErrorToCancel
                                 };
-                                utils::mail_message(&job, reason, smtp_configs.as_ref())
-                            }
-                            None => {
-                                unreachable!(
-                                    "Weird, some new job just appeared from nowhere: {}",
-                                    job
-                                )
-                            }
-                        };
+                                utils::mail_message(&job, &reason, smtp_configs.as_ref())
+                            },
+                        );
 
                         if let Some(mailer) = Option::as_ref(&mail_relay) {
                             match mailer.send(&message) {
@@ -258,6 +267,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         tokio::pin!(monitor_jobs);
 
         // Just another way to run streams
+        debug!("Wait emails sendings.");
         while (monitor_jobs.next().await).is_some() {}
     });
     debug!("Bye!");
