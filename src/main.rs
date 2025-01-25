@@ -31,13 +31,14 @@
 //! The SMTP section is only needed if you want to receive report emails.
 //! SMTP settings from environment variables must has `SMTP_` prefix.
 //!
+extern crate alloc;
 
 mod tests;
 mod utils;
 
 use futures::stream::{self, StreamExt as _};
 use log::{error, info};
-use std::rc::Rc;
+use alloc::rc::Rc;
 use tokio::runtime;
 use tokio::time as tktime;
 
@@ -56,7 +57,7 @@ pub enum MailReason {
     Status(JobScope),
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn core::error::Error>> {
     let rt = runtime::Builder::new_current_thread()
         .enable_time()
         .enable_io()
@@ -155,16 +156,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 debug!("Waiting for job {}", job);
                             } else {
                                 if let Some(mailer) = Option::as_ref(&mail_relay) {
-                                    let msg_reason = match curr_status {
+                                    let msg_reason = match *curr_status {
                                         JobScope::Canceled => {
-                                            match &verified_jobs
-                                                .get(&job)
+                                            //match &verified_jobs
+                                            //    .get(&job)
+                                            //    .unwrap_or(&(false, None))
+                                            //    .1
+                                            //{
+                                            //    Some(reason) => reason.clone(),
+                                            //    None => MailReason::Status(*curr_status),
+                                            //}
+                                            verified_jobs.get(&job)
                                                 .unwrap_or(&(false, None))
-                                                .1
-                                            {
-                                                Some(reason) => reason.clone(),
-                                                None => MailReason::Status(*curr_status),
-                                            }
+                                                .1.as_ref()
+                                                .map_or(MailReason::Status(*curr_status), 
+                                                    |reason| reason.clone())
                                         }
                                         _ => MailReason::Status(*curr_status),
                                     };

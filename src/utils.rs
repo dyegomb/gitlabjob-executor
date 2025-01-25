@@ -26,15 +26,15 @@ pub async fn mailrelay_build(smtp_config: SmtpConfig) -> Option<SmtpTransport> {
 
 /// Build mail message facilitator
 pub fn mail_message(job: &JobInfo, reason: &MailReason, builder: &SmtpConfig) -> Message {
-    let subject = match reason {
+    let subject = match *reason {
         MailReason::Duplicated => {
-            format!("Job {} canceled due to duplicated pipeline", job)
+            format!("Job {job} canceled due to duplicated pipeline")
         }
-        MailReason::InvalidTag => format!("Job {} canceled due to invalid git tag", job),
-        MailReason::ErrorToCancel => format!("Error trying to cancel job {}", job),
-        MailReason::ErrorToPlay => format!("Error to start job {}", job),
-        MailReason::MaxWaitElapsed => format!("Max wait time elapsed for job {}", job),
-        MailReason::Status(status) => format!("Status of job {}: {}", job, status),
+        MailReason::InvalidTag => format!("Job {job} canceled due to invalid git tag"),
+        MailReason::ErrorToCancel => format!("Error trying to cancel job {job}"),
+        MailReason::ErrorToPlay => format!("Error to start job {job}"),
+        MailReason::MaxWaitElapsed => format!("Max wait time elapsed for job {job}"),
+        MailReason::Status(status) => format!("Status of job {job}: {status}"),
     };
 
     let to = job.user_mail.clone();
@@ -81,7 +81,7 @@ pub async fn validate_jobs<'a>(
     for (proj, jobs) in proj_jobs {
         for job in jobs {
             if pipes_tocancel[proj]
-                .contains(&PipelineID(job.pipeline_id.unwrap()))
+                .contains(&PipelineID(job.pipeline_id.unwrap_or_default()))
             {
                 warn!(
                     "The job {} will be canceled due to duplicated pipelines",
@@ -109,7 +109,7 @@ pub async fn validate_jobs<'a>(
                         warn!("The job {} will be cancelled due to invalid tag.", job);
                     }
                 }
-                (Some(_), None) | (None, None) => {
+                (Some(_) | None, None) => {
                     checked_jobs.insert(job, (true, None));
                 }
             }
